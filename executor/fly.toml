@@ -1,0 +1,11 @@
+app = "maktub-executor"
+primary_region = "iad"
+
+[build]
+
+[deploy]
+  strategy = "immediate"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

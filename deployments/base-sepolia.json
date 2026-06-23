@@ -1,0 +1,99 @@
+{
+  "network": "Base Sepolia",
+  "chainId": 84532,
+  "deployedAt": "2026-06-18",
+  "deployBlock": 43011050,
+  "flashDeployBlock": 43067963,
+  "flashDeployBlockNote": "MaktubFlash (0xCE40C940…) is the D-039 canonical-state Flash (#211/#268), deployed 2026-06-20 against the existing RecipientRegistryV2 (0x9465…, NOT redeployed). Readers use the canonical getters (getSentFlashes/getReceivedFlashes/getFlash) — this floor is informational only; no event-log scan depends on it.",
+  "deployer": "0x644a7e9D5CACC60Cd41882D114a2339B891B1cE1",
+  "contracts": {
+    "RecipientRegistry": "0x813d441D461F7759fC809E8796A54b7580116BcD",
+    "MktbToken": "0x6A0eE3d8ea89B3d2c552A389f1805f15207b0928",
+    "TimelockController": "0x990888e5F8F91D521f9b8dB72F9a8B4BAE6A8eeB",
+    "MktbGovernance": "0x10E61B17312e601596E68Eb61d503B1C8AbFa86F",
+    "ExecutorRewards": "0x87720eC0fcFf59991B4b6F8c2a12b87B83c365D3",
+    "MaktubCore": "0x32840759630a97c97b7e3249725f5D9B57C36E23",
+    "ExecutionRelay": "0x4811F8ea7aC60D72bdbdD3ce8FA21Fc8cccE4218",
+    "RecipientRegistryV2": "0x9465fF9350762b397f2b8157391F3723096f4161",
+    "MaktubFlash": "0xCE40C940ed17533895Bd854ACe7C5724Fc4c1298",
+    "MaktubSmartWalletFactory": "0x0Dd60d0ad17B43465EF2C94D343F2d9FC476d22e",
+    "MaktubSmartWalletImplementation": "0x81d7D01D229dA1D763914b0920415c0129c526CE"
+  },
+  "flashPerRecipientFee": "5000000000000",
+  "stale": {
+    "MaktubFlash-2026-06-15": {
+      "address": "0x281785a346C0586E56CDca3a2597547f0B044c23",
+      "reason": "Superseded 2026-06-20 by the D-039 canonical-state MaktubFlash (0xCE40C940…, #211/#268): payload moved to canonical state (FlashRecord/getFlash) + exact sender/recipient discovery indexes. This was the old event-log-only Flash. Testnet dev — clean cutover, no migration / no data carried forward. RecipientRegistryV2 (0x9465…) was NOT redeployed, so existing key registrations stay valid. Old contract runs forever per D-025; do not use for new activity.",
+      "deprecatedAt": "2026-06-20"
+    },
+    "stack-2026-06-16": {
+      "RecipientRegistry": "0x49fbD4A3D67008766094Dc39B22DaAc77c2349Ff",
+      "MktbToken": "0x7360176c1f03ab7Baf50fba12568c8790c546c30",
+      "TimelockController": "0x3DCaf5b1FcFD712B89cec886b03d1bA975017a38",
+      "MktbGovernance": "0x15D15d548d948a9d3DE8c4988FF5Bbdaf3C3De1C",
+      "ExecutorRewards": "0x86B5601DCf0C88481B3A146eee0b17aF8ba15A1F",
+      "MaktubCore": "0xb603C96D089F64Ac487EE0bdaE97D49848F86133",
+      "ExecutionRelay": "0xCDAFa35Cb89d97299268e7F23297B963c829EE4F",
+      "reason": "Superseded 2026-06-18 by the FROZEN-protocol redeploy: D-038 (creator-chosen deterministic Beat ids + owner/recipient discovery indexes), D-040 (permissionless execution backstop, EXECUTION_GRACE=2d). Full Beat-stack redeploy (one-shot setMaktubCore forces Registry/Token/Timelock/Governance/ExecutorRewards/Core together); ExecutionRelay redeployed against the new core. The Flash stack (RecipientRegistryV2/MaktubFlash) is NOT redeployed here — the old event-log Flash stays active until the frozen D-039 Flash is deployed (pre-mainnet, off the Veil critical path). Old stack runs forever per D-025; do not use these addresses for new activity.",
+      "deprecatedAt": "2026-06-18"
+    },
+    "MktbGovernance": {
+      "address": "0xc60EAF688ADf6Cf9b0512De5d06f7341F1993Ddc",
+      "reason": "Deployed with Ethereum-mainnet (12s) block counts (votingDelay=7200, votingPeriod=50400). On Base L2 (~2s blocks) this produced 1/6 of intended wall-clock durations. Redeployed with corrected Base L2 values (votingDelay=43200, votingPeriod=302400). Do not use this address.",
+      "deprecatedAt": "2026-04-14"
+    },
+    "stack-2026-04-14": {
+      "RecipientRegistry": "0xfF66eEbFCf0C27f682B84500731752AaCAc7BBc9",
+      "MktbToken": "0x068d9176514C868d8fB43CE84A775b63cf223C5D",
+      "TimelockController": "0x268602317bF433A88a2cB93e06E458DC4fFC46b9",
+      "MktbGovernance": "0xaFbB07Db747f9Cc98703b8e242d2aADFF5d880Aa",
+      "ExecutorRewards": "0x468B52a4EEDD17E4304Db2bbD8bEF740A11013Ba",
+      "MaktubCore": "0x46f491eD5A82dA53Eb077aE35C4C5ed328864331",
+      "ExecutionRelay": "0x6C17173d8516AdFfC8DA48D923c3fC48CaEd4650",
+      "reason": "Full clean-stack redeploy on 2026-06-12 carrying PR #35 + #36: MaktubCore with the D-022/D-023 fee curve (base + per-additional, MAX_RECIPIENTS=100), execution-first ExecutionRelay (reward-best-effort, RewardSkipped), ExecutorRewards with updatable setMaktubCore (issue #3 — the old contract's one-shot setter is permanently consumed and cannot be re-wired), and the new Flash citizen substrate. Old stack runs forever per D-025; do not use these addresses for new activity.",
+      "deprecatedAt": "2026-06-12"
+    },
+    "stack-2026-06-12": {
+      "RecipientRegistry": "0x0e96AA25f13CA7F7d14eA3dCFD9C67c79b084276",
+      "MktbToken": "0xf4BB32121719A14cbF66a334ce45CfEE742fE0F7",
+      "TimelockController": "0xb5Fca5398DF893c3b4bf67C7E0aBF76BA2C10C13",
+      "MktbGovernance": "0x72581cd39f9b139fA343996c6cE22B3b1E7D33c1",
+      "ExecutorRewards": "0x1F45062b9e62D09A7F2e76e6ff9842bf24588Cd9",
+      "MaktubCore": "0x736A9fcAa8a6cB1bCCD31C37791B0C48578a56D1",
+      "ExecutionRelay": "0x127746080767226f922b71251E965A6673570657",
+      "RecipientRegistryV2": "0x6Afc51A24DbB0e17efCD6f003De3a8f3092f06a3",
+      "MaktubFlash": "0x7D8703Cfc90c22Af797Da948cd0010c1F4100030",
+      "reason": "Full clean-stack redeploy on 2026-06-15 carrying the D-030 MAX_PAYLOAD_BYTES=256 cap (#126, PR #130): MaktubCore + MaktubFlash now revert PayloadTooLarge above 256 bytes, enforcing the CID-only invariant at the contract level. The one-shot setMaktubCore setter forces a full Beat-stack redeploy (Registry/Token/Timelock/Governance/ExecutorRewards/Core) rather than a surgical Core swap. RecipientRegistryV2 + MaktubFlash + ExecutionRelay redeployed in the same refresh to wire to the new stack and carry the cap. Old stack runs forever per D-025; do not use these addresses for new activity. NOTE: feeReceiver on this testnet stack is the deployer EOA (#133/#72 multisig decision applies to mainnet only).",
+      "deprecatedAt": "2026-06-15"
+    },
+    "ExecutionRelay": {
+      "address": "0xCDAFa35Cb89d97299268e7F23297B963c829EE4F",
+      "reason": "Superseded by a fresh ExecutionRelay deployment. Older relay retains CORE_ROLE until explicitly revoked, but should no longer be used.",
+      "deprecatedAt": "2026-06-18"
+    },
+    "stack-2026-06-15": {
+      "RecipientRegistry": "0xeAf118dB2bf5c695077ED056b15aA399de01F92b",
+      "MktbToken": "0x87BEa5907CabF5Be5295d6eD6185aa273e7732A6",
+      "TimelockController": "0x5b36deD59Df030F11Dcf141113AF3dAaE5eB8230",
+      "MktbGovernance": "0x03b8B2bC265117E84Ce79bE2a66CBd251AE55f17",
+      "ExecutorRewards": "0xad8faeA8371565196C4ddF4c7A67FBF2BD87Bed7",
+      "MaktubCore": "0x7f49E01CDce8096FF3aAC6D102B11327fCE61a89",
+      "ExecutionRelay": "0xdFb060F84dBeE7a976c42F7Ce5446703A8B41d78",
+      "RecipientRegistryV2": "0x6260F493A9E84d4CA8Bba4800c1063A97507C3d2",
+      "MaktubFlash": "0xAC14fA94682521183934da1EbcF5df2639a6B0BA",
+      "reason": "Superseded 2026-06-16 by the inline-payload redeploy (#139, D-032): MAX_RECIPIENTS 100->25 and MAX_PAYLOAD_BYTES 256->4096 on both citizens, so a normal multi-recipient text letter rides inline on-chain (external storage only for big media). One-shot setMaktubCore forces the full Beat-stack redeploy; RegistryV2 + Flash + ExecutionRelay redeployed to wire to the new stack and carry the 4096 cap. Old stack runs forever per D-025; do not use these addresses for new activity. feeReceiver remains the deployer EOA on testnet (#133/#72 multisig is mainnet-only).",
+      "deprecatedAt": "2026-06-16"
+    }
+  },
+  "tokenDistribution": {
+    "executorRewards": "35000000",
+    "treasury": "25000000",
+    "deployer": "40000000",
+    "total": "100000000"
+  },
+  "feeCurve": {
+    "baseFee": "124000000000000",
+    "perAdditionalFee": "40000000000000",
+    "formula": "creationFee = baseFee + (recipients.length - 1) * perAdditionalFee"
+  }
+}

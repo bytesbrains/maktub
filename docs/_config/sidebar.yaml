@@ -1,0 +1,89 @@
+# Navigation structure for docs.maktub.it
+# Consumed by the docs site generator (e.g. Docusaurus, VitePress).
+# Edit this file to change the left-hand navigation.
+
+site:
+  name: Maktub Protocol Documentation
+  url: https://docs.maktub.it
+  description: >
+    Public documentation for Maktub Protocol — a decentralized conditional
+    execution engine on Base L2. Recipients + Payload + Timer = Heartbeat.
+
+sidebar:
+  - title: Introduction
+    items:
+      - label: Overview
+        path: /README.md
+
+  - title: For Users
+    collapsible: true
+    items:
+      - label: Your first heartbeat in 5 minutes
+        path: /user/getting-started.md
+      - label: Digital Estate
+        path: /user/digital-estate.md
+      - label: Safety Triggers
+        path: /user/safety-triggers.md
+      - label: Press Freedom
+        path: /user/press-freedom.md
+      - label: How it works
+        path: /user/how-it-works.md
+      - label: FAQ
+        path: /user/faq.md
+      - label: Safety guide
+        path: /user/safety-guide.md
+      - label: Glossary
+        path: /user/glossary.md
+
+  - title: For Developers
+    collapsible: true
+    items:
+      - label: Protocol specification
+        path: /developer/protocol-spec.md
+      - label: Contract reference
+        path: /developer/contracts.md
+      - label: SDK reference
+        path: /developer/sdk.md
+      - label: Integration guide
+        path: /developer/integration.md
+      - label: Deploying your own app
+        path: /developer/deploying-own-app.md
+      - label: Code examples
+        path: /developer/examples.md
+
+  - title: For Executors
+    collapsible: true
+    items:
+      - label: Running a node
+        path: /executor/running-a-node.md
+      - label: Economics
+        path: /executor/economics.md
+      - label: FAQ
+        path: /executor/faq.md
+
+  - title: For Governance
+    collapsible: true
+    items:
+      - label: Overview
+        path: /governance/overview.md
+      - label: Proposal process
+        path: /governance/proposals.md
+      - label: Current parameters
+        path: /governance/parameters.md
+
+# External links shown in the top navigation.
+links:
+  - label: Website
+    url: https://maktub.it
+  - label: GitHub
+    url: https://github.com/maktub-protocol/maktub
+  - label: Basescan (mainnet)
+    url: https://basescan.org
+  - label: Basescan (Sepolia)
+    url: https://sepolia.basescan.org
+
+footer:
+  text: >
+    Maktub Protocol is open source, fair-launch, and built on Base L2.
+    Core contracts are immutable.
+  license: CC BY 4.0

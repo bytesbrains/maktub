@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  contracts:
+    name: Contracts (compile + unit tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npx hardhat compile
+      - name: Unit tests (excluding live-network integration)
+        run: |
+          npx hardhat test \
+            test/MaktubCore.*.test.js \
+            test/MaktubFlash.*.test.js \
+            test/ExecutorRewards.*.test.js \
+            test/ExecutionRelay.*.test.js \
+            test/MktbGovernance.test.js \
+            test/MktbToken.test.js \
+            test/RecipientRegistry.test.js \
+            test/RecipientRegistryV2.test.js \
+            test/SmartWallet.test.js \
+            test/SmartWallet.webauthn.test.js \
+            test/SmartWalletFactory.invariants.test.js
+
+  sdk:
+    name: SDK (build + typecheck + unit tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: sdk/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+
+  secrets-scan:
+    name: Secrets scan (block committed private keys)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reject 64-hex private-key patterns in tracked files
+        run: |
+          # Looks for PRIVATE_KEY=0x{64 hex} committed to the repo.
+          # Instructional placeholders in *.env.example are explicitly allowed.
+          if git grep -nIE 'PRIVATE_KEY=0x[0-9a-fA-F]{64}' -- ':!*.env.example'; then
+            echo "::error::A 64-hex private key pattern is present in a tracked file. Reject."
+            exit 1
+          fi
+      - name: Reject tracked .env files
+        run: |
+          # .env must remain gitignored. Tracking one is always a mistake.
+          tracked_env=$(git ls-files '*.env' || true)
+          if [ -n "$tracked_env" ]; then
+            echo "::error::A .env file is tracked in the repo:"
+            echo "$tracked_env"
+            exit 1
+          fi

@@ -1,0 +1,21 @@
+{
+  "name": "maktub-executor",
+  "version": "0.1.0",
+  "description": "Maktub Protocol executor node — watch expired heartbeats, trigger execution, earn MKTB.",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "status": "node src/index.js --status"
+  },
+  "keywords": ["maktub", "executor", "base", "mktb"],
+  "author": "Maktub Protocol",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.2"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "maktub-protocol",
+  "version": "0.1.0",
+  "description": "Maktub Protocol — Decentralized conditional execution engine on Base L2",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "node": "hardhat node",
+    "gas": "REPORT_GAS=true hardhat test"
+  },
+  "keywords": [
+    "maktub",
+    "blockchain",
+    "base",
+    "heartbeat",
+    "conditional-execution",
+    "digital-estate",
+    "encryption",
+    "solidity"
+  ],
+  "author": "Maktub Protocol",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.6.1",
+    "dotenv": "^17.4.2",
+    "hardhat": "^2.28.6"
+  }
+}

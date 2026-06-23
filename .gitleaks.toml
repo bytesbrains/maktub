@@ -1,0 +1,67 @@
+# Maktub gitleaks config. Keeps ALL of gitleaks' default secret rules; only adds the
+# allowlist below.
+[extend]
+useDefault = true
+
+# Public on-chain contract addresses are NOT secrets. The files below are generated or
+# declarative and contain ONLY public EVM addresses (40-hex). gitleaks' `generic-api-key`
+# heuristic mis-flags some of them — notably the MktbToken address, because the "Token"
+# keyword sits next to a 40-hex value. Allowlist these specific files.
+#
+# This does NOT weaken real-secret detection: private keys are 64-hex and live in
+# `.env` / fly secrets (never in these files), the default rules still scan every other
+# path, and CI separately greps for `PRIVATE_KEY=0x{64hex}` across the whole repo.
+[[allowlists]]
+description = "Public contract-address files (on-chain addresses only, never secrets)"
+paths = [
+  '''deployments/base-sepolia\.json''',
+  '''executor/src/addresses\.generated\.js''',
+  '''mobile/lib/services/contract_addresses\.g\.dart''',
+  '''sdk/src/constants/sepolia_addresses\.generated\.ts''',
+]
+
+# Reading-key derivation test vectors (#300). These 64-hex values are NOT real
+# secrets: they are deterministic, PUBLIC test vectors derived from the
+# canonical all-"abandon" BIP-39 mnemonic (the most widely published BIP-39
+# test seed) and a fixed 0x00..1f PRF input. They are committed deliberately as
+# the cross-language (TS/Dart/Rust) byte-for-byte contract pinned in
+# ENCRYPTION_FORMAT.md §10.4. gitleaks' generic-api-key heuristic flags any
+# 64-hex; allowlist only these vector/spec files. Real per-account reading keys
+# are derived on-device and never written to the repo.
+[[allowlists]]
+description = "Reading-key cross-language test vectors (#300) — public deterministic vectors, not secrets"
+paths = [
+  '''sdk/src/crypto/reading-key\.test\.ts''',
+  '''mobile/test/reading_key_test\.dart''',
+  '''internal/product/ENCRYPTION_FORMAT\.md''',
+]
+
+# CocoaPods lockfile: SPEC CHECKSUMS are public SHA-1 hashes of each pod's spec,
+# not secrets. gitleaks' generic-api-key heuristic flags the `maktub_passkey`
+# checksum because the pod name contains "key" next to a 40-hex value — the same
+# mis-fire as the contract-address files above. Allowlist the lockfile (it only
+# ever holds pod versions + public checksums; real secrets live in .env / fly).
+[[allowlists]]
+description = "CocoaPods Podfile.lock (public pod checksums only, never secrets)"
+paths = [
+  '''mobile/ios/Podfile\.lock''',
+]
+
+# Public on-chain contract addresses appear in hand-written files too (SDK constants,
+# executor config, deploy/test scripts, docs) — not just the generated files above.
+# Allowlist the EVM-address SHAPE globally: `0x` + EXACTLY 40 hex with word boundaries.
+# This is safe — a 64-hex private key has no word boundary at offset 40 (it's followed by
+# more hex), so it does NOT match and is still caught. Real keys live in .env / fly secrets.
+[[allowlists]]
+description = "Public EVM contract addresses (0x + 40 hex) — never secrets; 64-hex keys still caught"
+regexes = ['''\b0x[0-9a-fA-F]{40}\b''']
+
+# Vendored cross-language crypto fixtures: deterministic PUBLIC test vectors (the
+# byte-for-byte cross-language contract), not secrets. Same rationale as the reading-key
+# vectors above.
+[[allowlists]]
+description = "Cross-language test fixtures (public deterministic vectors, not secrets)"
+paths = [
+  '''vectors/reading-key\.json''',
+  '''sdk/src/veil/warden_fixture\.json''',
+]

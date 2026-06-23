@@ -1,0 +1,31 @@
+{
+  "_comment": "Canonical cross-language reading-key derivation vectors (maktub#304). The SINGLE source of truth every language port (TS @bytesbrains/maktub-sdk, Dart app) asserts against, byte-for-byte. A divergence permanently orphans a user's letters — Critical-class invariant. All hex is 0x-less. The `labels` are the HKDF domain separators that MUST match across ports (testing the derived outputs implicitly validates them).",
+  "labels": {
+    "localKeyExtractSalt": "maktub:reading-key:salt:v1",
+    "localKeyExtractInfo": "maktub:reading-key:localKey:v1",
+    "rawKeyExtractInfo": "maktub:reading-key:rawkey:v1",
+    "readingScalarInfo": "maktub:ecies:secp256k1:reading:v1",
+    "prfSaltPreimage": "maktub:ecies:prf:v1"
+  },
+  "vectors": {
+    "localKey": {
+      "_note": "canonical all-\"abandon\" BIP-39 mnemonic, empty passphrase → 64-byte seed → reading key",
+      "seed64": "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4",
+      "readingSk": "4019957c615528826a4cfa9c66e3c7ce46d2eed1091ddab256fa95238c1ae45d",
+      "readingPk": "03c9e9dbac3111832276b8031780ec147575ef8c5e9eae0e3c655b084d1f195fc8"
+    },
+    "smartWallet": {
+      "_note": "fixed 32-byte WebAuthn PRF output 0x00..0x1f → reading key",
+      "prfOutput": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "readingSk": "4846ebb136c550a028820419018ffa76d8c2bedeebcff9f44bc50d27b7d20c06",
+      "readingPk": "02b61fe94c87dad6e84a48d2027fd0b22d5a36ce74bafa802a667a10bd3c16ea19"
+    },
+    "rawKey": {
+      "_note": "raw-hex localKey: 32-byte private key (no seed) → reading key derived from the private key",
+      "privateKey": "1111111111111111111111111111111111111111111111111111111111111111",
+      "readingSk": "b3b6c89525885db0a32bf8fb9a1ff141f5cdff8b879e70dfdf336c9a4ce8e5de",
+      "readingPk": "034d2e3ec07b59991f0d0e441d8bf1349362ba6c25e2583e060ccbb56fc37d4253"
+    },
+    "prfSalt": "4f3e56c8e8d5111ab00b8d7aab107be4b411306702bf2d27d8dc6cd3a6f22d04"
+  }
+}

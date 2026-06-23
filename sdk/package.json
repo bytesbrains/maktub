@@ -1,0 +1,52 @@
+{
+  "name": "@bytesbrains/maktub-sdk",
+  "version": "0.1.0-dev.1",
+  "description": "TypeScript SDK for the Maktub Protocol — decentralized conditional execution engine on Base L2",
+  "author": "BytesBrains",
+  "license": "MIT",
+  "homepage": "https://maktub.it",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bytesbrains/maktub.git",
+    "directory": "sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/bytesbrains/maktub/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc && npm run copy:wasm",
+    "copy:wasm": "mkdir -p dist/veil/wasm && cp src/veil/wasm/warden_wasm.js src/veil/wasm/warden_wasm_bg.wasm src/veil/wasm/warden_wasm.d.ts src/veil/wasm/warden_wasm_bg.wasm.d.ts dist/veil/wasm/",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "maktub",
+    "heartbeat",
+    "conditional-execution",
+    "base",
+    "ethereum",
+    "sdk"
+  ],
+  "peerDependencies": {
+    "ethers": "^6.0.0"
+  },
+  "devDependencies": {
+    "ethers": "^6.13.0",
+    "typescript": "^5.4.0",
+    "vitest": "^4.1.9"
+  }
+}

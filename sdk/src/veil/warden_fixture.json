@@ -1,0 +1,73 @@
+{
+  "blob": "0200012d666978747572652d6879627269642d636970686572746578742d62797465732dff00",
+  "condition": {
+    "address": "0xb603C96D089F64Ac487EE0bdaE97D49848F86133",
+    "args": [
+      "777"
+    ],
+    "chain": 84532,
+    "fn": "getHeartbeat(uint256)",
+    "meta": {
+      "finality": 32,
+      "tier": 1
+    },
+    "test": {
+      "cmp": "==",
+      "value": true
+    },
+    "type": "contract",
+    "word": 7
+  },
+  "dId": "a9a3795f6b49dacdc3a2d75dcbf931192f7e1543f79ea9c7c1e0f8c45716a9bbed6a1363ad6dc927dd33026a877cf5d0",
+  "federation": {
+    "mpk": "b8a2479dde546041c9f193c0ef3897b377dc09f9d8aed4652217434e37d9590de98c2154cf77364d21b1c654e16114f219a8ae2aa4fe6238df2fd4ccb05f0e903847f3bb58aa361383bd68849a75f75afce7540dd2436ac2a7cc64f4c53f99b0",
+    "n": 3,
+    "network": "warden-fixture",
+    "share_pubkeys": [
+      {
+        "index": 1,
+        "pk": "0100000000000000b84a10a1ac2b627a955aaf479efe82774968dd68b7ada591d88b2732cb514a8cec36d33ad133f824a8916f91e3687b9b04cf2a158c85b079be1bc658de254a02c8bfe2ea5bb9692202538ca2fd54141ba8710b4ba5aab54b95294f7d3df44f98"
+      },
+      {
+        "index": 2,
+        "pk": "0200000000000000ab9db0b6c1e271b0480bf32355789125e17052625f04dbb7e69ac24585bed538d249714d48b276449d801efe30717991032cd6229c4f51c6ffd7afd46071a65ba9dd47cba2f3312424060dbef44893b326f16c71f94afa6d0d770768d149c3ac"
+      },
+      {
+        "index": 3,
+        "pk": "0300000000000000ac545d00910486c20bc2d2f3abf158aaccf8b0927f2eb49bf2d19346e55e22b9872757e99c8b1b07443eb853bf68848801b3614a499129d88983a5732768496cc4b9d1ae7f7b0cf605dc19c2f049f8494fe812f90ec0300a35e35481ae119059"
+      }
+    ],
+    "t": 2
+  },
+  "gatedEnvelope": {
+    "alg": "warden-gate-v1",
+    "condition": {
+      "address": "0xb603C96D089F64Ac487EE0bdaE97D49848F86133",
+      "args": [
+        "777"
+      ],
+      "chain": 84532,
+      "fn": "getHeartbeat(uint256)",
+      "meta": {
+        "finality": 32,
+        "tier": 1
+      },
+      "test": {
+        "cmp": "==",
+        "value": true
+      },
+      "type": "contract",
+      "word": 7
+    },
+    "ibe": "a7cd35c5eff954812ca880389239109e0149cc2ae432964e3eefe6ce109a040baff5133f903c7d2377ef1d885e33920f17a31f402d9138a92eb2624d15659a6f711f568b85b990a1c1103340906eebb68df5d746fff09451223b6dbca84df76da9736fac6bbe14feb7d4925a935e79d278c3ac72fb6b952e27d5b2a4a0c00d89c95a2ca0351912e399ef9589d5e315824e06a2b5fa88f9f827b1bae488e3ab47",
+    "network": "warden-fixture",
+    "seal": "e5f52039d5261e829d66380b2afefc2bf666f218d69c71ba8553a11a51c1c82673f06be82e8054fdafdaf47b9c87b799f7ebce43a0129a278eddf42c9fbb5342f32b3db715388449c5aa84d935f73ef49179d4c692b57a1c15cdb1b5"
+  },
+  "identity": "47fce3a147fc844978e8301a7aedbf437100eda9f769ac0d559c85d806cdb68e",
+  "masterPub": "b8a2479dde546041c9f193c0ef3897b377dc09f9d8aed4652217434e37d9590de98c2154cf77364d21b1c654e16114f219a8ae2aa4fe6238df2fd4ccb05f0e903847f3bb58aa361383bd68849a75f75afce7540dd2436ac2a7cc64f4c53f99b0",
+  "network": "warden-fixture",
+  "partials": [
+    "0100000000000000aa605c03e1beb7865a7bcccc7b1333103252236b7cb7fe24deba76ae45f6753ae17ba1f019fa02b4007adf02c6d11717",
+    "0300000000000000a9ac3f8a7d69e9018d306b3a2da3e8d265c43ce4a42ca199cc77d82aab785bb972d8db69e680a262dc6b8441c8226351"
+  ]
+}

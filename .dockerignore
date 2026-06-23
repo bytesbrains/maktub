@@ -1,0 +1,11 @@
+node_modules
+**/node_modules
+artifacts
+cache
+.git
+warden/target
+**/target
+*.log
+# Never let a secret env file leak into a build layer (the chain image's context is repo root).
+**/.env
+*.env
