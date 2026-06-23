@@ -78,4 +78,5 @@ License: **MIT** (everything in this repo).
 
 ## Contributing
 
-- Work on a branch and open a PR; never push directly to `main`. CI (contract compile + test, secret scan) must be green before merge.
+- See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`SECURITY.md`](SECURITY.md). Work on a branch and open a PR; never push directly to `main`; CI (contract compile + test, SDK build + test, secret scan) must be green before merge.
+- The immutable core takes no admin/upgrade/governance changes — protocol changes ship as new immutable deployments via [`docs/developer/protocol-family.md`](docs/developer/protocol-family.md) §9, not edits.

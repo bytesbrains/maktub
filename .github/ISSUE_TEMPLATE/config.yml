@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability (report privately)
+    url: https://github.com/bytesbrains/maktub/security/advisories/new
+    about: Never report security issues in a public issue — use private advisories.
+  - name: Protocol spec, invariants & new-citizen gate
+    url: https://github.com/bytesbrains/maktub/blob/main/docs/developer/protocol-family.md
+    about: Read the protocol topology, invariants, and §9 gate before proposing protocol changes.

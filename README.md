@@ -67,6 +67,12 @@ npx hardhat test
 - **Base Sepolia** — live testnet deployment (addresses in `deployments/base-sepolia.json`).
 - **Base mainnet** — a future, audit-gated milestone.
 
+## Contributing & security
+
+- **Contributing** — see [`CONTRIBUTING.md`](CONTRIBUTING.md). SDK, tooling, tests, and docs PRs are welcome; the contracts are immutable by design, so protocol changes ship as new deployments (the [`docs/developer/protocol-family.md`](docs/developer/protocol-family.md) §9 gate), not edits.
+- **Security** — please report vulnerabilities privately; see [`SECURITY.md`](SECURITY.md). Maktub claims guaranteed delivery and content confidentiality, and deliberately *not* metadata privacy.
+- **Conduct** — [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
+
 ## License
 
 MIT.
