@@ -1,6 +1,6 @@
 {
   "name": "@bytesbrains/maktub-sdk",
-  "version": "0.1.0-dev.1",
+  "version": "0.1.0-dev.2",
   "description": "TypeScript SDK for the Maktub Protocol — decentralized conditional execution engine on Base L2",
   "author": "BytesBrains",
   "license": "MIT",

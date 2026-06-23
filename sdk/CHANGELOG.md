@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-dev.2
+
+- Rebuilt the bundled **Veil** warden wasm with remapped build paths, so the
+  binary no longer embeds absolute local source paths in its debug strings. No
+  API or behavior change; crypto output is identical (cross-language vectors
+  unchanged).
+
 ## 0.1.0-dev.1
 
 - First public **pre-release** of `@bytesbrains/maktub-sdk` (published under the
