@@ -89,6 +89,22 @@ To just print a one-shot status snapshot and exit:
 npm run status
 ```
 
+### Run with Docker
+
+A multi-arch image (linux/amd64 + linux/arm64) is published to Docker Hub as
+[`bytesbrains/maktub-executor`](https://hub.docker.com/r/bytesbrains/maktub-executor).
+It's **dev-tagged** and **pre-mainnet** — it bundles the Base Sepolia addresses,
+and `ExecutorRewards` isn't live yet, so today it's for experimentation, not
+earning. There is deliberately **no `:latest`** tag until mainnet.
+
+```bash
+docker pull bytesbrains/maktub-executor:dev
+docker run --env-file .env bytesbrains/maktub-executor:dev
+```
+
+The image carries no secrets; supply your RPC URL and key at runtime via
+`--env-file .env` (see [Setup](#setup)).
+
 ---
 
 ## What you'll see
