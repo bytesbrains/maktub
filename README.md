@@ -2,6 +2,12 @@
 
 > **It is written. And only for whom it is written.**
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![npm](https://img.shields.io/npm/v/@bytesbrains/maktub-sdk.svg?label=%40bytesbrains%2Fmaktub-sdk)](https://www.npmjs.com/package/@bytesbrains/maktub-sdk)
+[![network: Base Sepolia](https://img.shields.io/badge/network-Base%20Sepolia-0052FF.svg)](deployments/base-sepolia.json)
+
+**Open source as of June 24, 2026.** A protocol you trust to deliver your last words should be one you can read in full — so the foundation (contracts, SDK, executor) is now public under the MIT license. Live on Base Sepolia; mainnet is a future, audit-gated milestone.
+
 Maktub is a decentralized **conditional execution** protocol on Base L2. One primitive:
 
 ```
