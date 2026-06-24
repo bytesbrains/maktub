@@ -1,6 +1,7 @@
 {
   "name": "maktub-protocol",
   "version": "0.1.0",
+  "private": true,
   "description": "Maktub Protocol — Decentralized conditional execution engine on Base L2",
   "main": "index.js",
   "scripts": {
