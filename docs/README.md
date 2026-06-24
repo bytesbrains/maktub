@@ -69,6 +69,7 @@ If you are a person who wants to protect a family, a trip, or a story, start wit
 - It does **not** move funds on your behalf
 - It is **not** a real-time emergency service — for life-threatening emergencies, always call local emergency services first
 - It is **not** an identity system or a messenger
+- It is **not** anonymous — your message *content* is encrypted, but the on-chain record of which addresses you named and when delivery happened is public and permanent. See [Is Maktub private?](./user/faq.md#is-maktub-private-can-anyone-see-who-i-am-messaging) in the FAQ
 
 If you want to pass cryptocurrency to someone, you put your seed phrase or private key into the encrypted payload. When the timer expires, that recipient can decrypt the payload and import the wallet themselves. Maktub transports the information, not the asset.
 

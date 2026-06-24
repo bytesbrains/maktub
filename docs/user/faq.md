@@ -74,6 +74,16 @@ Nothing dramatic. You just keep checking in. The heartbeat was never going to fi
 
 No. The protocol encrypts on your device before anything is uploaded. Maktub the team cannot read it. The storage layer cannot read it. The executor network cannot read it. Only the recipients you named can, and only after the timer expires.
 
+### Is Maktub private? Can anyone see who I am messaging?
+
+Be precise here, because it matters. Maktub protects the **content** of your message, not the **fact** of it. Your payload is encrypted on your own device, so only the recipients you named can ever read it — that part is genuinely private, and stays private forever.
+
+Everything around the content is public. Because Maktub runs on a public blockchain, anyone can see that your wallet created a heartbeat, which addresses you named as recipients, and when delivery happened. That record is permanent and cannot be deleted.
+
+So the honest sentence is: **the content is private; the metadata is not.** "End-to-end encrypted" is accurate. "Anonymous" or "fully private" would be an overclaim, and we do not use those words. This is, in fact, a weaker position on metadata than a mainstream encrypted messenger such as Signal or SimpleX, where who-contacts-whom is hidden from the public. On Maktub, the link from your wallet to your recipients is visible to everyone.
+
+If hiding *who you are in contact with* is part of your threat model — source protection, whistleblowing — do not rely on Maktub for that. At most, use a wallet that is not tied to your real-world identity, and understand that the link between that wallet and your recipients is still on-chain. Read the [Press Freedom guide](./press-freedom.md) and the [Safety Guide](./safety-guide.md) before depending on it.
+
 ### What if I lose my wallet?
 
 You cannot check in. Your heartbeat will expire after one interval and deliver to your recipients. This is by design — the protocol cannot tell "lost wallet" from "died." If you have a recovery path (seed phrase in a safe place, a linked email account), use it. If not, the heartbeat will fire. See the [Safety Guide](./safety-guide.md) for more.
