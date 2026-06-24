@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.0-dev.3
+
+- Ship the canonical deployment record as a packaged **carrier** at
+  `deployments/base-sepolia.json` (addresses + chainId + deploy blocks),
+  generated from the protocol's `deployments/base-sepolia.json` by
+  `scripts/gen-addresses.mjs` and included in the published tarball. This lets
+  non-TypeScript downstreams (the Flutter app) pin an SDK **version** and
+  regenerate their own constants from it instead of syncing files across repos
+  (#87). No API change; the TypeScript address constants are unchanged.
+
 ## 0.1.0-dev.2
 
 - Rebuilt the bundled **Veil** warden wasm with remapped build paths, so the

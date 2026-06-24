@@ -51,6 +51,31 @@ jobs:
       - run: npm run build
       - run: npm test
 
+  addresses:
+    name: Generated addresses match deployments
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Regenerate clients from deployments/base-sepolia.json
+        run: node scripts/gen-addresses.mjs
+      - name: Fail if any generated file is stale
+        # The SDK carrier (sdk/deployments/base-sepolia.json), the SDK TS constants,
+        # and the executor constants are all derived from deployments/base-sepolia.json.
+        # A redeploy that edits the deployment record without regenerating — or a
+        # hand-edit of a generated file — is exactly the address drift that orphans
+        # users' letters. Regenerate in CI and fail on any diff.
+        run: |
+          if ! git diff --quiet; then
+            echo "::error::Generated address files are out of sync with deployments/base-sepolia.json. Run 'node scripts/gen-addresses.mjs' and commit."
+            git --no-pager diff --stat
+            git --no-pager diff
+            exit 1
+          fi
+          echo "SDK carrier + SDK TS + executor addresses are in sync with deployments/base-sepolia.json."
+
   secrets-scan:
     name: Secrets scan (block committed private keys)
     runs-on: ubuntu-latest
