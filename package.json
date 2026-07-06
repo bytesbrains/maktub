@@ -8,7 +8,8 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "node": "hardhat node",
-    "gas": "REPORT_GAS=true hardhat test"
+    "gas": "REPORT_GAS=true hardhat test",
+    "coverage": "hardhat coverage --testfiles \"test/{*.test.js,system/*.test.js}\""
   },
   "keywords": [
     "maktub",

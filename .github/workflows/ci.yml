@@ -100,3 +100,93 @@ jobs:
             echo "$tracked_env"
             exit 1
           fi
+
+  coverage:
+    name: Coverage (solidity-coverage, full v3 tree)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Measure coverage over contracts/v3 (unit + system suites)
+        # Instruments the whole v3 tree (see .solcover.js). Excludes the
+        # live-Sepolia integration suite and the production ops scripts, which
+        # need a funded network account. Reported, not gated — a floor can be
+        # ratcheted in once the per-contract baseline is agreed (issue #6).
+        run: npm run coverage
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage/
+            coverage.json
+          if-no-files-found: warn
+
+  static-analysis:
+    name: Static analysis (Slither)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Slither
+        # Runs Slither against the Hardhat build (no Foundry needed). Reported,
+        # not gated, on first landing: the deployed contracts carry intentional
+        # patterns Slither flags (e.g. the immutable feeReceiver low-level call).
+        # Triage these into a committed baseline, then flip fail-on to a real
+        # severity to make regressions blocking (issue #6).
+        uses: crytic/slither-action@v0.4.0
+        continue-on-error: true
+        with:
+          target: "."
+          slither-args: "--filter-paths 'contracts/v3/mocks|node_modules'"
+          fail-on: none
+
+  static-analysis-aderyn:
+    name: Static analysis (Aderyn)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Compile
+        # Aderyn reads Hardhat build-info; compile explicitly so a compile error
+        # surfaces here rather than as an opaque Aderyn failure.
+        run: npx hardhat compile
+      - name: Install Aderyn (prebuilt binary)
+        uses: cargo-bins/cargo-binstall@main
+      - name: Install Aderyn
+        continue-on-error: true
+        run: cargo binstall --no-confirm aderyn
+      - name: Run Aderyn (report-only)
+        # Second static analyser alongside Slither — different detector set.
+        # Non-gating on first land (same posture as Slither): produce the report,
+        # triage into a baseline, then make regressions blocking (issue #6).
+        # --src scopes analysis to contracts/v3 (matches hardhat paths.sources)
+        # so Aderyn does not try to compile node_modules test mocks (e.g.
+        # eth-gas-reporter's truffle fixtures); OZ imports still resolve via
+        # remappings.txt.
+        continue-on-error: true
+        run: aderyn . --src contracts/v3 -o aderyn-report.md
+      - name: Upload Aderyn report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aderyn-report
+          path: aderyn-report.md
+          # error (not warn): the run step is continue-on-error so *findings*
+          # don't gate — but if Aderyn produced NO report at all (e.g. it could
+          # not resolve imports), that is real breakage and must fail the job
+          # rather than pass green with nothing. Aderyn reads remappings.txt.
+          if-no-files-found: error
