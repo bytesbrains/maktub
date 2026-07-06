@@ -149,3 +149,36 @@ jobs:
           target: "."
           slither-args: "--filter-paths 'contracts/v3/mocks|node_modules'"
           fail-on: none
+
+  static-analysis-aderyn:
+    name: Static analysis (Aderyn)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Compile
+        # Aderyn reads Hardhat build-info; compile explicitly so a compile error
+        # surfaces here rather than as an opaque Aderyn failure.
+        run: npx hardhat compile
+      - name: Install Aderyn (prebuilt binary)
+        uses: cargo-bins/cargo-binstall@main
+      - name: Install Aderyn
+        continue-on-error: true
+        run: cargo binstall --no-confirm aderyn
+      - name: Run Aderyn (report-only)
+        # Second static analyser alongside Slither — different detector set.
+        # Non-gating on first land (same posture as Slither): produce the report,
+        # triage into a baseline, then make regressions blocking (issue #6).
+        continue-on-error: true
+        run: aderyn . -o aderyn-report.md
+      - name: Upload Aderyn report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aderyn-report
+          path: aderyn-report.md
+          if-no-files-found: warn
