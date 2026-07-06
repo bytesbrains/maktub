@@ -181,4 +181,8 @@ jobs:
         with:
           name: aderyn-report
           path: aderyn-report.md
-          if-no-files-found: warn
+          # error (not warn): the run step is continue-on-error so *findings*
+          # don't gate — but if Aderyn produced NO report at all (e.g. it could
+          # not resolve imports), that is real breakage and must fail the job
+          # rather than pass green with nothing. Aderyn reads remappings.txt.
+          if-no-files-found: error
