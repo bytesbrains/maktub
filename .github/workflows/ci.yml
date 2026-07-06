@@ -100,3 +100,52 @@ jobs:
             echo "$tracked_env"
             exit 1
           fi
+
+  coverage:
+    name: Coverage (solidity-coverage, full v3 tree)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Measure coverage over contracts/v3 (unit + system suites)
+        # Instruments the whole v3 tree (see .solcover.js). Excludes the
+        # live-Sepolia integration suite and the production ops scripts, which
+        # need a funded network account. Reported, not gated — a floor can be
+        # ratcheted in once the per-contract baseline is agreed (issue #6).
+        run: npm run coverage
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage/
+            coverage.json
+          if-no-files-found: warn
+
+  static-analysis:
+    name: Static analysis (Slither)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Slither
+        # Runs Slither against the Hardhat build (no Foundry needed). Reported,
+        # not gated, on first landing: the deployed contracts carry intentional
+        # patterns Slither flags (e.g. the immutable feeReceiver low-level call).
+        # Triage these into a committed baseline, then flip fail-on to a real
+        # severity to make regressions blocking (issue #6).
+        uses: crytic/slither-action@v0.4.0
+        continue-on-error: true
+        with:
+          target: "."
+          slither-args: "--filter-paths 'contracts/v3/mocks|node_modules'"
+          fail-on: none
