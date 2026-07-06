@@ -173,8 +173,12 @@ jobs:
         # Second static analyser alongside Slither — different detector set.
         # Non-gating on first land (same posture as Slither): produce the report,
         # triage into a baseline, then make regressions blocking (issue #6).
+        # --src scopes analysis to contracts/v3 (matches hardhat paths.sources)
+        # so Aderyn does not try to compile node_modules test mocks (e.g.
+        # eth-gas-reporter's truffle fixtures); OZ imports still resolve via
+        # remappings.txt.
         continue-on-error: true
-        run: aderyn . -o aderyn-report.md
+        run: aderyn . --src contracts/v3 -o aderyn-report.md
       - name: Upload Aderyn report
         if: always()
         uses: actions/upload-artifact@v4
