@@ -101,6 +101,27 @@ jobs:
             exit 1
           fi
 
+  invariants:
+    name: Invariant tests (Foundry)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive # forge-std lives in lib/ as a submodule
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      # npm ci provides node_modules/@openzeppelin, which remappings.txt maps
+      # `@openzeppelin/` onto — forge resolves the OZ imports through it.
+      - run: npm ci
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: forge test (stateful invariant + fuzz)
+        # GATING (unlike the report-only analysers): these are correctness
+        # tests. A broken invariant — executed unwinding, staked principal
+        # eaten by rewards, supply over cap — must fail the build.
+        run: forge test -vv
+
   coverage:
     name: Coverage (solidity-coverage, full v3 tree)
     runs-on: ubuntu-latest
