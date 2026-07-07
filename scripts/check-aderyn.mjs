@@ -28,13 +28,27 @@ if (!reportPath) {
 const report = JSON.parse(readFileSync(reportPath, "utf8"));
 const baseline = JSON.parse(readFileSync(new URL("./aderyn-baseline.json", import.meta.url), "utf8"));
 
+// Fail CLOSED on schema drift: a report this script cannot interpret must
+// fail the job, not read as "no findings" — otherwise an Aderyn output-shape
+// change would silently disable the gate.
+function malformed(what) {
+  console.error(`Uninterpretable Aderyn report (${reportPath}): ${what}.`);
+  console.error("Aderyn's JSON schema may have changed — update scripts/check-aderyn.mjs (and re-pin deliberately).");
+  process.exit(2);
+}
+
 // Current findings → the same {severity:detector: {file: count}} shape.
 const current = {};
 for (const [sevKey, sev] of [["high_issues", "high"], ["low_issues", "low"]]) {
-  for (const issue of report[sevKey]?.issues ?? []) {
+  if (!Array.isArray(report[sevKey]?.issues)) malformed(`missing ${sevKey}.issues array`);
+  for (const issue of report[sevKey].issues) {
+    if (typeof issue.detector_name !== "string" || !Array.isArray(issue.instances)) {
+      malformed(`issue under ${sevKey} lacks detector_name/instances`);
+    }
     const key = `${sev}:${issue.detector_name}`;
     current[key] ??= {};
     for (const inst of issue.instances) {
+      if (typeof inst.contract_path !== "string") malformed(`instance of ${key} lacks contract_path`);
       current[key][inst.contract_path] = (current[key][inst.contract_path] ?? 0) + 1;
     }
   }

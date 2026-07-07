@@ -13,6 +13,18 @@ import { readFileSync } from "node:fs";
 const coverage = JSON.parse(readFileSync("coverage.json", "utf8"));
 const floors = JSON.parse(readFileSync(new URL("./coverage-floors.json", import.meta.url), "utf8"));
 
+// Fail CLOSED on a bad floors config: a missing or non-numeric floor would
+// otherwise compare as `actual < undefined` === false and silently weaken the
+// gate. Validate every floor set up front.
+function validateFloorSet(label, floorSet) {
+  for (const metric of METRICS) {
+    if (!Number.isFinite(floorSet?.[metric])) {
+      console.error(`coverage-floors.json: "${label}" lacks a numeric "${metric}" floor.`);
+      process.exit(2);
+    }
+  }
+}
+
 // Per-metric (covered, total) counters from one istanbul file entry.
 function tally(entry) {
   const hitCounts = (obj) => {
@@ -45,6 +57,15 @@ function check(label, tallies, floorSet) {
       console.log(`  ok  ${line}`);
     }
   }
+}
+
+if (typeof floors.perFile !== "object" || floors.perFile === null) {
+  console.error('coverage-floors.json: missing "perFile" object.');
+  process.exit(2);
+}
+validateFloorSet("global", floors.global);
+for (const [file, floorSet] of Object.entries(floors.perFile)) {
+  validateFloorSet(file, floorSet);
 }
 
 // Global: sum counters across every instrumented file.
