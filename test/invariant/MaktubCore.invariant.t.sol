@@ -28,9 +28,15 @@ contract MaktubCoreHandler is CommonBase {
     address[] public pool; // registered recipients
 
     uint256[] public ids;
+    bytes32[] public usedSalts; // parallel to ids: the salt each beat was created with
     mapping(uint256 => bool) public everExecuted;
     mapping(uint256 => bool) public everDeactivated;
     uint256 internal saltNonce;
+
+    /// @dev Set true iff re-creating a beat with an already-used (creator, salt)
+    ///      ever SUCCEEDS. It must always stay false — the second create must
+    ///      revert HeartbeatAlreadyExists, proving id collisions can't overwrite.
+    bool public collisionDetected;
 
     constructor(MaktubCore _core, RecipientRegistry _registry, address[] memory _pool) {
         core = _core;
@@ -56,9 +62,13 @@ contract MaktubCoreHandler is CommonBase {
     }
 
     function _recips(uint256 rSeed) internal view returns (address[] memory recips) {
-        uint256 count = (rSeed % pool.length) + 1; // 1..pool.length, all distinct + registered
+        // Rotating window over the pool: `count` distinct, registered recipients
+        // starting at a seed-derived offset, so different recipients land in the
+        // discovery index across beats (exercises the recipient-index invariants).
+        uint256 count = (rSeed % pool.length) + 1; // 1..pool.length
+        uint256 offset = (rSeed / 7) % pool.length;
         recips = new address[](count);
-        for (uint256 i = 0; i < count; i++) recips[i] = pool[i];
+        for (uint256 i = 0; i < count; i++) recips[i] = pool[(offset + i) % pool.length];
     }
 
     function createBeat(uint256 rSeed, uint256 interval) external {
@@ -67,6 +77,20 @@ contract MaktubCoreHandler is CommonBase {
         uint256 fee = core.creationFeeFor(recips.length);
         try core.createHeartbeat{value: fee}(salt, recips, hex"01", _boundInterval(interval)) returns (uint256 id) {
             ids.push(id);
+            usedSalts.push(salt);
+        } catch {}
+    }
+
+    /// @dev Re-submit a previously-used salt (same creator). The derived id already
+    ///      exists, so this MUST revert HeartbeatAlreadyExists; if it ever returns
+    ///      an id instead, the collision guard is broken and we flag it.
+    function attemptDuplicate(uint256 seed) external {
+        if (usedSalts.length == 0) return;
+        bytes32 salt = usedSalts[seed % usedSalts.length];
+        address[] memory recips = _recips(seed);
+        uint256 fee = core.creationFeeFor(recips.length);
+        try core.createHeartbeat{value: fee}(salt, recips, hex"02", core.MIN_INTERVAL()) returns (uint256) {
+            collisionDetected = true;
         } catch {}
     }
 
@@ -118,25 +142,30 @@ contract MaktubCoreHandler is CommonBase {
 ///   2. `deactivated` is terminal — once deactivated it stays deactivated.
 ///   3. The contract custodies no ETH — every creation fee is forwarded and any
 ///      excess refunded, so its balance is always zero.
+///   4. Beat ids are exactly `keccak256(creator, salt)` and a reused (creator,
+///      salt) can never overwrite an existing beat (collision-proof ids, D-038).
+///   5. The recipient discovery index is de-duplicated (a beat appears at most
+///      once per recipient) and never misses a current recipient.
 contract MaktubCoreInvariant is StdInvariant, Test {
     uint256 internal constant BASE_FEE = 124_000_000_000_000;
     uint256 internal constant PER_ADDL = 40_000_000_000_000;
     address internal constant FEE_RECEIVER = address(0xFEE);
+    uint256 internal constant POOL_N = 5;
 
     MaktubCore internal core;
     RecipientRegistry internal registry;
     MockExecutorRewards internal rewards;
     MaktubCoreHandler internal handler;
+    address[] internal pool;
 
     function setUp() public {
         registry = new RecipientRegistry();
         rewards = new MockExecutorRewards();
         core = new MaktubCore(BASE_FEE, PER_ADDL, payable(FEE_RECEIVER), registry, rewards);
 
-        address[] memory pool = new address[](5);
-        for (uint256 i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < POOL_N; i++) {
             address r = address(uint160(0x1000 + i));
-            pool[i] = r;
+            pool.push(r);
             vm.prank(r);
             registry.register(abi.encodePacked(uint8(0x02), bytes32(uint256(i + 1))));
         }
@@ -169,5 +198,52 @@ contract MaktubCoreInvariant is StdInvariant, Test {
             (, , , , , , , , bool deactivated) = core.getHeartbeat(id);
             assertTrue(deactivated, "deactivated unwound to false");
         }
+    }
+
+    /// Every id equals keccak256(creator, salt) — content-addressed, not enumerable (D-038).
+    function invariant_idDerivation() public view {
+        uint256 n = handler.idsLength();
+        for (uint256 i = 0; i < n; i++) {
+            uint256 expected = uint256(keccak256(abi.encode(address(handler), handler.usedSalts(i))));
+            assertEq(handler.ids(i), expected, "id != keccak256(creator, salt)");
+        }
+    }
+
+    /// Re-using a (creator, salt) never overwrites an existing beat.
+    function invariant_noIdCollision() public view {
+        assertFalse(handler.collisionDetected(), "reused salt overwrote an existing beat");
+    }
+
+    /// The discovery index holds each beat at most once per recipient (dedup).
+    function invariant_recipientIndexNoDuplicates() public view {
+        for (uint256 p = 0; p < pool.length; p++) {
+            uint256[] memory inbox = core.getInboxBeats(pool[p]);
+            for (uint256 a = 0; a < inbox.length; a++) {
+                for (uint256 b = a + 1; b < inbox.length; b++) {
+                    assertTrue(inbox[a] != inbox[b], "recipient index contains a duplicate id");
+                }
+            }
+        }
+    }
+
+    /// A current recipient of a beat is always discoverable via its inbox index
+    /// (the index may carry stale removed recipients, but never misses a live one).
+    function invariant_recipientIndexNoMiss() public view {
+        uint256 n = handler.idsLength();
+        for (uint256 i = 0; i < n; i++) {
+            uint256 id = handler.ids(i);
+            (, address[] memory recips, , , , , , , ) = core.getHeartbeat(id);
+            for (uint256 j = 0; j < recips.length; j++) {
+                assertTrue(_inboxContains(recips[j], id), "current recipient missing from discovery index");
+            }
+        }
+    }
+
+    function _inboxContains(address r, uint256 id) internal view returns (bool) {
+        uint256[] memory inbox = core.getInboxBeats(r);
+        for (uint256 k = 0; k < inbox.length; k++) {
+            if (inbox[k] == id) return true;
+        }
+        return false;
     }
 }
