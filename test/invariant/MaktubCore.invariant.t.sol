@@ -156,6 +156,10 @@ contract MaktubCoreInvariant is StdInvariant, Test {
     RecipientRegistry internal registry;
     MockExecutorRewards internal rewards;
     MaktubCoreHandler internal handler;
+    /// @dev Deliberately mirrors `handler.pool`: setUp builds this array once and
+    ///      hands the same values to the handler's constructor. The recipient-index
+    ///      invariants iterate this copy; if handler construction ever changes,
+    ///      these two must stay identical or the invariants silently under-scan.
     address[] internal pool;
 
     function setUp() public {
@@ -215,6 +219,10 @@ contract MaktubCoreInvariant is StdInvariant, Test {
     }
 
     /// The discovery index holds each beat at most once per recipient (dedup).
+    /// The pairwise scan is quadratic in inbox size, but it checks the array the
+    /// contract actually returns with zero handler ghost state; at pool size 5
+    /// and the configured fuzz depth that beats the bookkeeping-model risk.
+    /// Revisit only if suite runtime regresses.
     function invariant_recipientIndexNoDuplicates() public view {
         for (uint256 p = 0; p < pool.length; p++) {
             uint256[] memory inbox = core.getInboxBeats(pool[p]);
@@ -229,18 +237,34 @@ contract MaktubCoreInvariant is StdInvariant, Test {
     /// A current recipient of a beat is always discoverable via its inbox index
     /// (the index may carry stale removed recipients, but never misses a live one).
     function invariant_recipientIndexNoMiss() public view {
+        // Every beat recipient comes from the pool, so each inbox is fetched
+        // exactly once per invariant call and reused across all beats.
+        uint256[][] memory inboxes = new uint256[][](pool.length);
+        for (uint256 p = 0; p < pool.length; p++) {
+            inboxes[p] = core.getInboxBeats(pool[p]);
+        }
+
         uint256 n = handler.idsLength();
         for (uint256 i = 0; i < n; i++) {
             uint256 id = handler.ids(i);
             (, address[] memory recips, , , , , , , ) = core.getHeartbeat(id);
             for (uint256 j = 0; j < recips.length; j++) {
-                assertTrue(_inboxContains(recips[j], id), "current recipient missing from discovery index");
+                assertTrue(
+                    _contains(inboxes[_poolIndex(recips[j])], id),
+                    "current recipient missing from discovery index"
+                );
             }
         }
     }
 
-    function _inboxContains(address r, uint256 id) internal view returns (bool) {
-        uint256[] memory inbox = core.getInboxBeats(r);
+    function _poolIndex(address r) internal view returns (uint256) {
+        for (uint256 p = 0; p < pool.length; p++) {
+            if (pool[p] == r) return p;
+        }
+        revert("beat recipient not drawn from the pool");
+    }
+
+    function _contains(uint256[] memory inbox, uint256 id) internal pure returns (bool) {
         for (uint256 k = 0; k < inbox.length; k++) {
             if (inbox[k] == id) return true;
         }
