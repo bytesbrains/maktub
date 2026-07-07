@@ -19,6 +19,13 @@ evm_version = "cancun"
 optimizer = true
 optimizer_runs = 200
 
+# Halmos symbolic checks (test/halmos/*.halmos.t.sol, `check_`-prefixed) live
+# in their own test root so `forge test` never picks them up; halmos builds and
+# runs them via `FOUNDRY_PROFILE=halmos halmos` (settings in halmos.toml).
+# Everything else (solc, remappings, out/cache dirs) inherits from default.
+[profile.halmos]
+test = "test/halmos"
+
 # Invariant fuzzing: each run is a random sequence of `depth` handler calls;
 # `runs` independent sequences. fail_on_revert=false so reverting handler calls
 # (e.g. an intentionally-invalid input) are skipped, not counted as failures —

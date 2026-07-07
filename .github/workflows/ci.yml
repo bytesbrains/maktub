@@ -122,6 +122,35 @@ jobs:
         # eaten by rewards, supply over cap — must fail the build.
         run: forge test -vv
 
+  symbolic:
+    name: Symbolic checks (Halmos)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive # forge-std lives in lib/ as a submodule
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      # npm ci provides node_modules/@openzeppelin, which remappings.txt maps
+      # `@openzeppelin/` onto — halmos builds via forge, which resolves through it.
+      - run: npm ci
+      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Pinned: halmos is young and its symbolic-execution coverage shifts
+      # between releases — an unpinned bump must not silently change what a
+      # green run proves. Bump deliberately.
+      - run: pip install halmos==0.3.3
+      - name: halmos (symbolic proofs over fee curve, expiry gates, reward caps, pagination)
+        # GATING, like the invariants job: each `check_` proves its property
+        # for EVERY input value (Phase 3 of issue #6). The suites live in
+        # test/halmos/ behind the `halmos` foundry profile; settings in
+        # halmos.toml. `forge test` never runs them (check_ prefix).
+        run: FOUNDRY_PROFILE=halmos halmos
+
   coverage:
     name: Coverage (solidity-coverage, full v3 tree)
     runs-on: ubuntu-latest
