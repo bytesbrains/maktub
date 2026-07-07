@@ -15,8 +15,11 @@ Scoped context for the Solidity test suite. Read alongside the root [`../CLAUDE.
   `cache_forge/`. Handler-based pattern: a handler contract exposes the fuzzed
   entrypoints and records ghost state; `invariant_*` functions assert the
   properties. Current suites: `MktbToken` (supply cap), `MaktubCore` (executed/
-  deactivated terminal, no-ETH custody), `ExecutorRewards` (stake solvency, pool
-  cap). More invariants from issue #6 §Phase-2 are follow-ups.
+  deactivated terminal, no-ETH custody, `keccak(creator,salt)` id derivation +
+  collision-resistance, recipient-index dedup + no-miss), `ExecutorRewards`
+  (stake solvency, pool cap + a deterministic cap-enforcement test, and a pin of
+  the known `isActiveExecutor`-staleness-after-`setMinimumStake` behaviour).
+  Phase 3 (Halmos symbolic checks) from issue #6 is the remaining follow-up.
 
 ## Layout
 

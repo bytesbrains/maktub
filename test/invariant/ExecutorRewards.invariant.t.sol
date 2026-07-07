@@ -137,4 +137,28 @@ contract ExecutorRewardsInvariant is StdInvariant, Test {
         vm.expectRevert(ExecutorRewards.RewardPoolExhausted.selector);
         rewards.distributeReward(address(handler), 1);
     }
+
+    /// @notice Pins the KNOWN behaviour (review finding #6): `isActiveExecutor`
+    ///         is recomputed only on stake/unstake/slash — NOT on setMinimumStake.
+    ///         So raising the minimum leaves an now-undercollateralized executor
+    ///         flagged active until its next interaction. This is deliberately a
+    ///         concrete regression pin, not an invariant (the naive
+    ///         "active ⇔ stake ≥ min" property does NOT hold at all times).
+    function test_setMinimumStake_leavesActiveFlagStaleUntilInteraction() public {
+        vm.prank(address(handler));
+        rewards.stake(MIN_STAKE);
+        assertTrue(rewards.isActiveExecutor(address(handler)), "should be active at exactly min stake");
+
+        // Governance raises the bar above the handler's stake.
+        rewards.setMinimumStake(MIN_STAKE * 2);
+
+        // Flag is stale: still active despite being under the new minimum.
+        assertTrue(rewards.isActiveExecutor(address(handler)), "flag unexpectedly recomputed on setMinimumStake");
+        assertLt(rewards.stakes(address(handler)), rewards.minimumStake(), "precondition: now under minimum");
+
+        // The next stake interaction refreshes it.
+        vm.prank(address(handler));
+        rewards.unstake(1);
+        assertFalse(rewards.isActiveExecutor(address(handler)), "flag should refresh to inactive on interaction");
+    }
 }
