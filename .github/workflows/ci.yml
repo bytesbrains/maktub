@@ -200,10 +200,13 @@ jobs:
         # Version pinned + framework forced: the triage IDs hash the finding
         # descriptions, so an unpinned Slither (or an accidental forge build,
         # possible since foundry.toml exists) could invalidate the baseline.
+        # 0.11.4 is the newest the action's image can run (its Python is <3.10,
+        # which slither >=0.11.5 requires); the committed IDs were generated
+        # with 0.11.4.
         uses: crytic/slither-action@v0.4.0
         with:
           target: "."
-          slither-version: "0.11.5"
+          slither-version: "0.11.4"
           slither-args: "--compile-force-framework hardhat --filter-paths 'contracts/v3/mocks|node_modules'"
           fail-on: medium
 
@@ -221,14 +224,21 @@ jobs:
         # Aderyn reads Hardhat build-info; compile explicitly so a compile error
         # surfaces here rather than as an opaque Aderyn failure.
         run: npx hardhat compile
-      - name: Install Aderyn (prebuilt binary)
-        uses: cargo-bins/cargo-binstall@main
-      - name: Install Aderyn
+      - name: Install Aderyn (pinned release binary)
         # Pinned (issue #11): the committed baseline was generated with 0.6.8,
         # and Aderyn's detector set shifts between releases — an unpinned bump
         # would gate PRs on tool churn, not code changes. Bump deliberately
-        # (regenerate scripts/aderyn-baseline.json in the same PR).
-        run: cargo binstall --no-confirm aderyn@0.6.8
+        # (regenerate scripts/aderyn-baseline.json in the same PR). Installed
+        # straight from the GitHub release with checksum verification —
+        # crates.io lags the releases (it has no 0.6.8), so binstall can't pin.
+        run: |
+          curl -sSfL -o aderyn.tar.xz \
+            https://github.com/Cyfrin/aderyn/releases/download/aderyn-v0.6.8/aderyn-x86_64-unknown-linux-gnu.tar.xz
+          echo "ffd6ca658962e211a3ac821c646f69c8e14bf1b1001cbfe091bcd4535a691e46  aderyn.tar.xz" | sha256sum -c -
+          tar -xJf aderyn.tar.xz
+          sudo install aderyn-x86_64-unknown-linux-gnu/aderyn /usr/local/bin/aderyn
+          rm -rf aderyn.tar.xz aderyn-x86_64-unknown-linux-gnu
+          aderyn --version
       - name: Run Aderyn
         # Second static analyser alongside Slither — different detector set.
         # --src scopes analysis to contracts/v3 (matches hardhat paths.sources)
