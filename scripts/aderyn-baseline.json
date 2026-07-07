@@ -1,0 +1,50 @@
+{
+  "high:reentrancy-state-change": {
+    "contracts/v3/core/ExecutionRelay.sol": 2,
+    "contracts/v3/core/MaktubCore.sol": 1,
+    "contracts/v3/core/MaktubFlash.sol": 1,
+    "contracts/v3/governance/ExecutorRewards.sol": 2
+  },
+  "low:centralization-risk": {
+    "contracts/v3/governance/ExecutorRewards.sol": 8,
+    "contracts/v3/token/MktbToken.sol": 2
+  },
+  "low:costly-loop": {
+    "contracts/v3/core/MaktubCore.sol": 1,
+    "contracts/v3/core/MaktubFlash.sol": 1
+  },
+  "low:large-numeric-literal": {
+    "contracts/v3/governance/ExecutorRewards.sol": 2,
+    "contracts/v3/governance/MktbGovernance.sol": 1,
+    "contracts/v3/token/MktbToken.sol": 1
+  },
+  "low:local-variable-shadowing": {
+    "contracts/v3/governance/MktbGovernance.sol": 2
+  },
+  "low:modifier-used-only-once": {
+    "contracts/v3/wallet/MaktubSmartWallet.sol": 1
+  },
+  "low:non-reentrant-not-first": {
+    "contracts/v3/core/MaktubCore.sol": 1,
+    "contracts/v3/governance/ExecutorRewards.sol": 2
+  },
+  "low:redundant-statement": {
+    "contracts/v3/wallet/MaktubSmartWallet.sol": 1,
+    "contracts/v3/wallet/MaktubSmartWalletFactory.sol": 2
+  },
+  "low:require-revert-in-loop": {
+    "contracts/v3/core/MaktubCore.sol": 2,
+    "contracts/v3/core/MaktubFlash.sol": 2,
+    "contracts/v3/wallet/MaktubSmartWallet.sol": 1
+  },
+  "low:unchecked-return": {
+    "contracts/v3/governance/ExecutorRewards.sol": 2
+  },
+  "low:unused-error": {
+    "contracts/v3/governance/ExecutorRewards.sol": 2
+  },
+  "low:unused-public-function": {
+    "contracts/v3/core/RecipientRegistryV2.sol": 1,
+    "contracts/v3/governance/ExecutorRewards.sol": 1
+  }
+}

@@ -15,6 +15,7 @@ Scoped context for deploy/redeploy/smoke scripts. Read alongside the root [`../C
 | `resume-deploy.js` | Resume a partial deploy. |
 | `gen-addresses.mjs` | **Regenerates address files for mobile, sdk, and executor** from `../deployments/base-sepolia.json`. Run after every redeploy. |
 | `check-balance.js`, `register-wallet-c.js` | Ops helpers. |
+| `check-coverage.mjs`, `check-aderyn.mjs` | **CI ratchet gates (issue #11)**, run from repo root. `check-coverage.mjs` enforces the floors in `coverage-floors.json` against `../coverage.json`; `check-aderyn.mjs` diffs an Aderyn JSON report against the triaged `aderyn-baseline.json`. Floors/baselines ratchet toward strict — tighten when findings resolve, never loosen without review. (Slither's counterpart baseline is `../slither.db.json`, auto-loaded by Slither itself.) |
 | `test-*.js`, `two-wallet-test.js` | On-chain smoke tests (ECIES, heartbeat, smart-wallet userop, app flow, client crypto). Transact on a live network — run deliberately. `two-wallet-test.js` is the thin entry point; its sequential phases (setup/register/create/verify) + shared helpers live in `two-wallet/`. |
 
 ## Redeploy config-refresh checklist (single-source addresses)

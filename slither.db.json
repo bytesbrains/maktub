@@ -1,0 +1,26 @@
+[
+  {
+    "id": "ac52be2107527f50a07aef48f7eb182420cd3d31f2b25792b7791026d61f5039",
+    "check": "arbitrary-send-eth",
+    "impact": "High",
+    "description": "MaktubSmartWallet._call(address,uint256,bytes) (contracts/v3/wallet/MaktubSmartWallet.sol#255-263) sends eth to arbitrary user\n\tDangerous calls:\n\t- (success,ret) = target.call{value: value}(data) (contracts/v3/wallet/MaktubSmartWallet.sol#256)"
+  },
+  {
+    "id": "5b03594523892d9b90269d9f963a7ac52cce101d5fa0dc79455ac4ade16916bb",
+    "check": "incorrect-equality",
+    "impact": "Medium",
+    "description": "ExecutorRewards.distributeReward(address,uint256) (contracts/v3/governance/ExecutorRewards.sol#313-358) uses a dangerous strict equality:\n\t- reward == 0 (contracts/v3/governance/ExecutorRewards.sol#350)"
+  },
+  {
+    "id": "85d759c71490c662d95b5ca463e40e0630e4e3bba2552f47ac1f929e83a84e0c",
+    "check": "incorrect-equality",
+    "impact": "Medium",
+    "description": "RecipientRegistryV2.setExtKey(bytes32,bytes) (contracts/v3/core/RecipientRegistryV2.sol#229-240) uses a dangerous strict equality:\n\t- _recipients[msg.sender].encUpdatedAt == 0 (contracts/v3/core/RecipientRegistryV2.sol#230)"
+  },
+  {
+    "id": "e4adf830ed1fd2e8a6b67e74a6f57bbfec584d2ba01483c8b23a26a0142c765d",
+    "check": "unused-return",
+    "impact": "Medium",
+    "description": "ExecutorRewards.distributeReward(address,uint256) (contracts/v3/governance/ExecutorRewards.sol#313-358) ignores return value by (None,None,None,None,None,createdAt,checkInCount,executed,None) = maktubCore.getHeartbeat(heartbeatId) (contracts/v3/governance/ExecutorRewards.sol#319-329)"
+  }
+]
