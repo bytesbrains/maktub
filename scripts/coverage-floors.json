@@ -1,0 +1,47 @@
+{
+  "_comment": "Coverage floors enforced by scripts/check-coverage.mjs (issue #11). Set slightly under the 2026-07-07 baseline; RATCHET UP as gaps close, never down. Metrics: statements / branches / functions / lines, in percent.",
+  "global": {
+    "statements": 90,
+    "branches": 80,
+    "functions": 89,
+    "lines": 91
+  },
+  "perFile": {
+    "contracts/v3/core/MaktubCore.sol": {
+      "statements": 97,
+      "branches": 88,
+      "functions": 94,
+      "lines": 98
+    },
+    "contracts/v3/core/MaktubFlash.sol": {
+      "statements": 96,
+      "branches": 92,
+      "functions": 89,
+      "lines": 97
+    },
+    "contracts/v3/core/RecipientRegistry.sol": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "contracts/v3/core/RecipientRegistryV2.sol": {
+      "statements": 96,
+      "branches": 95,
+      "functions": 100,
+      "lines": 99
+    },
+    "contracts/v3/governance/ExecutorRewards.sol": {
+      "statements": 94,
+      "branches": 74,
+      "functions": 92,
+      "lines": 95
+    },
+    "contracts/v3/token/MktbToken.sol": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    }
+  }
+}

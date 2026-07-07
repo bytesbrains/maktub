@@ -34,6 +34,11 @@ coverage/
 coverage.json
 .nyc_output/
 
+# Static-analysis reports (generated per run; the committed baselines are
+# slither.db.json + scripts/aderyn-baseline.json, NOT these)
+aderyn-report.md
+aderyn-report.json
+
 # Build artifacts
 build/
 dist/

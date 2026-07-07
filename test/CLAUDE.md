@@ -8,9 +8,12 @@ Scoped context for the Solidity test suite. Read alongside the root [`../CLAUDE.
 - **Foundry (invariant/fuzz), alongside Hardhat.** `test/invariant/*.t.sol` are
   Solidity stateful-invariant + fuzz suites run by `forge test` (config in
   `../foundry.toml`; `@openzeppelin` resolves via `../remappings.txt`, forge-std
-  from `../lib/`). They run in the **`invariants`** CI job and are **gating**
-  (unlike the report-only Slither/Aderyn jobs) — a broken invariant fails the
-  build. Hardhat and Foundry never collide: Hardhat compiles only `contracts/v3`
+  from `../lib/`). They run in the **`invariants`** CI job and are **gating** —
+  a broken invariant fails the build. (Since issue #11, Slither/Aderyn and the
+  coverage floor gate too: Slither fails on non-triaged Medium+ (baseline in
+  `../slither.db.json`), Aderyn fails on findings beyond
+  `../scripts/aderyn-baseline.json`, coverage fails under the floors in
+  `../scripts/coverage-floors.json`.) Hardhat and Foundry never collide: Hardhat compiles only `contracts/v3`
   and runs only `*.js`; Foundry compiles/runs only `*.sol`, into `out/` +
   `cache_forge/`. Handler-based pattern: a handler contract exposes the fuzzed
   entrypoints and records ghost state; `invariant_*` functions assert the

@@ -164,9 +164,13 @@ jobs:
       - name: Measure coverage over contracts/v3 (unit + system suites)
         # Instruments the whole v3 tree (see .solcover.js). Excludes the
         # live-Sepolia integration suite and the production ops scripts, which
-        # need a funded network account. Reported, not gated — a floor can be
-        # ratcheted in once the per-contract baseline is agreed (issue #6).
+        # need a funded network account.
         run: npm run coverage
+      - name: Enforce coverage floors
+        # GATING (issue #11): global + per-protocol-contract floors set just
+        # under the recorded baseline, in scripts/coverage-floors.json. Floors
+        # ratchet UP as gaps close, never down — add tests, don't lower floors.
+        run: node scripts/check-coverage.mjs
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
@@ -188,17 +192,23 @@ jobs:
           cache: "npm"
       - run: npm ci
       - name: Slither
-        # Runs Slither against the Hardhat build (no Foundry needed). Reported,
-        # not gated, on first landing: the deployed contracts carry intentional
-        # patterns Slither flags (e.g. the immutable feeReceiver low-level call).
-        # Triage these into a committed baseline, then flip fail-on to a real
-        # severity to make regressions blocking (issue #6).
+        # GATING on Medium+ (issue #11). The four known-intentional High/Medium
+        # findings (the smart wallet's owner-authorized execute-with-value, two
+        # zero-sentinel equality checks, one partial tuple destructuring) are
+        # triaged into slither.db.json at the repo root — Slither auto-loads it
+        # and skips those result IDs, so only NEW Medium+ findings fail.
+        # Version pinned + framework forced: the triage IDs hash the finding
+        # descriptions, so an unpinned Slither (or an accidental forge build,
+        # possible since foundry.toml exists) could invalidate the baseline.
+        # 0.11.4 is the newest the action's image can run (its Python is <3.10,
+        # which slither >=0.11.5 requires); the committed IDs were generated
+        # with 0.11.4.
         uses: crytic/slither-action@v0.4.0
-        continue-on-error: true
         with:
           target: "."
-          slither-args: "--filter-paths 'contracts/v3/mocks|node_modules'"
-          fail-on: none
+          slither-version: "0.11.4"
+          slither-args: "--compile-force-framework hardhat --filter-paths 'contracts/v3/mocks|node_modules'"
+          fail-on: medium
 
   static-analysis-aderyn:
     name: Static analysis (Aderyn)
@@ -214,29 +224,45 @@ jobs:
         # Aderyn reads Hardhat build-info; compile explicitly so a compile error
         # surfaces here rather than as an opaque Aderyn failure.
         run: npx hardhat compile
-      - name: Install Aderyn (prebuilt binary)
-        uses: cargo-bins/cargo-binstall@main
-      - name: Install Aderyn
-        continue-on-error: true
-        run: cargo binstall --no-confirm aderyn
-      - name: Run Aderyn (report-only)
+      - name: Install Aderyn (pinned release binary)
+        # Pinned (issue #11): the committed baseline was generated with 0.6.8,
+        # and Aderyn's detector set shifts between releases — an unpinned bump
+        # would gate PRs on tool churn, not code changes. Bump deliberately
+        # (regenerate scripts/aderyn-baseline.json in the same PR). Installed
+        # straight from the GitHub release with checksum verification —
+        # crates.io lags the releases (it has no 0.6.8), so binstall can't pin.
+        run: |
+          curl -sSfL -o aderyn.tar.xz \
+            https://github.com/Cyfrin/aderyn/releases/download/aderyn-v0.6.8/aderyn-x86_64-unknown-linux-gnu.tar.xz
+          echo "ffd6ca658962e211a3ac821c646f69c8e14bf1b1001cbfe091bcd4535a691e46  aderyn.tar.xz" | sha256sum -c -
+          tar -xJf aderyn.tar.xz
+          sudo install aderyn-x86_64-unknown-linux-gnu/aderyn /usr/local/bin/aderyn
+          rm -rf aderyn.tar.xz aderyn-x86_64-unknown-linux-gnu
+          aderyn --version
+      - name: Run Aderyn
         # Second static analyser alongside Slither — different detector set.
-        # Non-gating on first land (same posture as Slither): produce the report,
-        # triage into a baseline, then make regressions blocking (issue #6).
         # --src scopes analysis to contracts/v3 (matches hardhat paths.sources)
         # so Aderyn does not try to compile node_modules test mocks (e.g.
         # eth-gas-reporter's truffle fixtures); OZ imports still resolve via
-        # remappings.txt.
-        continue-on-error: true
-        run: aderyn . --src contracts/v3 -o aderyn-report.md
+        # remappings.txt. Mocks are excluded to match the Slither job's filter.
+        # Markdown report for humans (artifact), JSON for the baseline gate.
+        run: |
+          aderyn . --src contracts/v3 -x contracts/v3/mocks -o aderyn-report.md --skip-update-check
+          aderyn . --src contracts/v3 -x contracts/v3/mocks -o aderyn-report.json --skip-update-check
+      - name: Enforce Aderyn baseline
+        # GATING on NEW findings only (issue #11): Aderyn has no severity exit
+        # code, so scripts/check-aderyn.mjs diffs the JSON report against the
+        # committed, triaged scripts/aderyn-baseline.json — every baselined
+        # finding sits in a deployed immutable contract and was reviewed as
+        # intentional. New detector/file pairs or instance-count increases fail.
+        run: node scripts/check-aderyn.mjs aderyn-report.json
       - name: Upload Aderyn report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: aderyn-report
           path: aderyn-report.md
-          # error (not warn): the run step is continue-on-error so *findings*
-          # don't gate — but if Aderyn produced NO report at all (e.g. it could
-          # not resolve imports), that is real breakage and must fail the job
-          # rather than pass green with nothing. Aderyn reads remappings.txt.
+          # error (not warn): if Aderyn produced NO report at all (e.g. it
+          # could not resolve imports), that is real breakage and must fail
+          # the job rather than pass green with nothing.
           if-no-files-found: error
