@@ -96,6 +96,12 @@ contract MaktubCoreHalmos is Test {
     // ──────────────────────────────────────────────
     //  2. execute() — expiry and expiry+GRACE boundaries
     // ──────────────────────────────────────────────
+    // State isolation: every check_ function starts from the post-setUp
+    // baseline, and paths within a check are independent forks — so the
+    // `executed = true` write on a successful-execute path never leaks into
+    // the timer-gate reasoning of another path or check. If halmos ever
+    // weakened that isolation, these gate proofs would need one fresh beat
+    // per check.
 
     /// An ACTIVE executor can execute exactly when `ts > expiry` — never at or
     /// before expiry, always after (for every possible timestamp).
@@ -148,7 +154,11 @@ contract MaktubCoreHalmos is Test {
     /// start (count enumerated 0..len, which exhausts this region).
     function check_ownerBeatsPaged_noClampRegion(uint256 start) public view {
         for (uint256 c = 0; c <= BEATS; c++) {
-            if (start + c > BEATS) continue;
+            // Overflow-safe form of `start + c > BEATS` (c <= BEATS, so the
+            // subtraction can't underflow): a checked `start + c` would revert
+            // for start near 2^256, handing the solver an artifact path that
+            // belongs to regions C/D, not here.
+            if (start > BEATS - c) continue;
             uint256[] memory page = core.getOwnerBeatsPaged(address(this), start, c);
             assertEq(page.length, c, "unclamped page length != count");
             for (uint256 i = 0; i < c; i++) {
