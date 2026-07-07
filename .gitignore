@@ -10,6 +10,12 @@ artifacts/
 cache/
 dist/
 
+# Foundry (runs alongside Hardhat for invariant/fuzz tests). The lib/ submodule
+# (forge-std) and foundry.lock are committed for reproducibility; only the build
+# output is ignored.
+out/
+cache_forge/
+
 # Environment variables
 .env
 .env.local

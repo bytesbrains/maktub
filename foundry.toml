@@ -1,0 +1,29 @@
+# Foundry runs ALONGSIDE Hardhat — it does not replace it.
+#   - Hardhat: JS unit/system suites (test/*.test.js), compile, deploy, coverage.
+#   - Foundry: Solidity stateful invariant + fuzz tests (test/invariant/*.t.sol).
+# The two never collide: Hardhat compiles only contracts/v3 (paths.sources) and
+# runs only *.js via mocha; Foundry compiles/runs only *.sol. Distinct out/cache
+# dirs (out/ + cache_forge/ vs artifacts/ + cache/) keep their artifacts apart.
+#
+# @openzeppelin imports resolve via the shared remappings.txt (also used by
+# Aderyn); forge-std resolves from lib/. Solc/EVM settings mirror hardhat.config.js.
+
+[profile.default]
+src = "contracts/v3"
+out = "out"
+libs = ["lib"]
+test = "test/invariant"
+cache_path = "cache_forge"
+solc_version = "0.8.28"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+
+# Invariant fuzzing: each run is a random sequence of `depth` handler calls;
+# `runs` independent sequences. fail_on_revert=false so reverting handler calls
+# (e.g. an intentionally-invalid input) are skipped, not counted as failures —
+# only a broken invariant assertion fails the suite.
+[profile.default.invariant]
+runs = 128
+depth = 32
+fail_on_revert = false

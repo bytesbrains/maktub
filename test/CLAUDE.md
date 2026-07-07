@@ -5,6 +5,18 @@ Scoped context for the Solidity test suite. Read alongside the root [`../CLAUDE.
 ## Toolchain
 
 - Hardhat + Chai. Tests target the v3 contracts compiled from `../contracts/v3/`.
+- **Foundry (invariant/fuzz), alongside Hardhat.** `test/invariant/*.t.sol` are
+  Solidity stateful-invariant + fuzz suites run by `forge test` (config in
+  `../foundry.toml`; `@openzeppelin` resolves via `../remappings.txt`, forge-std
+  from `../lib/`). They run in the **`invariants`** CI job and are **gating**
+  (unlike the report-only Slither/Aderyn jobs) — a broken invariant fails the
+  build. Hardhat and Foundry never collide: Hardhat compiles only `contracts/v3`
+  and runs only `*.js`; Foundry compiles/runs only `*.sol`, into `out/` +
+  `cache_forge/`. Handler-based pattern: a handler contract exposes the fuzzed
+  entrypoints and records ghost state; `invariant_*` functions assert the
+  properties. Current suites: `MktbToken` (supply cap), `MaktubCore` (executed/
+  deactivated terminal, no-ETH custody), `ExecutorRewards` (stake solvency, pool
+  cap). More invariants from issue #6 §Phase-2 are follow-ups.
 
 ## Layout
 
