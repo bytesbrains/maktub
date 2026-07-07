@@ -19,7 +19,23 @@ Scoped context for the Solidity test suite. Read alongside the root [`../CLAUDE.
   collision-resistance, recipient-index dedup + no-miss), `ExecutorRewards`
   (stake solvency, pool cap + a deterministic cap-enforcement test, and a pin of
   the known `isActiveExecutor`-staleness-after-`setMinimumStake` behaviour).
-  Phase 3 (Halmos symbolic checks) from issue #6 is the remaining follow-up.
+- **Halmos (symbolic), the third layer.** `test/halmos/*.halmos.t.sol` hold
+  `check_`-prefixed functions whose args are SYMBOLIC — each check proves its
+  property for every input value, not a fuzzed sample. They live behind the
+  `halmos` foundry profile (`[profile.halmos]` sets `test = "test/halmos"`, so
+  `forge test` never sees them); run with `FOUNDRY_PROFILE=halmos halmos`
+  (`pip install halmos`; settings in `../halmos.toml`). Gating **`symbolic`**
+  CI job, halmos version pinned there. Current checks (Phase 3 of issue #6):
+  `MaktubCore` (the committed fee curve over the whole valid domain, the
+  `execute()` gate exact at `expiry` and `expiry+EXECUTION_GRACE`, expiry-view
+  boundary semantics, `_page` bounds via the paged discovery views) and
+  `ExecutorRewards` (halving-schedule window/exactness, the
+  `setRewardPerExecution` hard cap, `currentRewardAmount` window + bound).
+  Halmos limitation worth knowing: it cannot execute a path that allocates a
+  memory array of SYMBOLIC length (solc zeroes it with a symbolic-size
+  `calldatacopy`), so checks over array-returning paths must be shaped so the
+  length is concrete per path — see the region-split pagination checks in
+  `MaktubCore.halmos.t.sol` for the pattern.
 
 ## Layout
 

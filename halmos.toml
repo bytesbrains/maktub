@@ -1,0 +1,7 @@
+# Halmos (symbolic execution) settings — Phase 3 of #6.
+# Run with: FOUNDRY_PROFILE=halmos halmos
+# The `check_` suites live in test/halmos/ (see foundry.toml [profile.halmos]).
+[global]
+# The pagination checks walk a page of up to 3 elements with a symbolic bound;
+# unroll comfortably past that so no path is silently truncated.
+loop = 4
