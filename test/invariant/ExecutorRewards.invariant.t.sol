@@ -59,9 +59,18 @@ contract ExecutorRewardsHandler {
 ///         35M pool cap.
 contract ExecutorRewardsInvariant is StdInvariant, Test {
     uint256 internal constant MIN_STAKE = 1_000 ether;
-    uint256 internal constant REWARD_PER_EXEC = 100 ether;
+    // Reward-per-exec and pool funding are sized so a single invariant run
+    // (depth 32 => ~10 distribute calls) can actually push `totalDistributed`
+    // to the 35M TOTAL_REWARD_POOL cap: ~7 payouts of 5M reach it, after which
+    // the cap-enforcement path (reward -> remaining -> RewardPoolExhausted)
+    // engages. POOL_FUNDS exceeds the cap so the pool limit — not the
+    // on-contract balance — is the binding constraint. (State resets between
+    // runs, so the *deterministic* test_poolCapEnforced… below is the rigorous
+    // proof that the cap is reached and enforced; the funding here just lets the
+    // fuzzer exercise the same path under random sequences too.)
+    uint256 internal constant REWARD_PER_EXEC = 5_000_000 ether;
     uint256 internal constant HANDLER_FUNDS = 10_000_000 ether;
-    uint256 internal constant POOL_FUNDS = 1_000_000 ether;
+    uint256 internal constant POOL_FUNDS = 36_000_000 ether; // > 35M TOTAL_REWARD_POOL
 
     MktbToken internal token;
     ExecutorRewards internal rewards;
@@ -95,5 +104,37 @@ contract ExecutorRewardsInvariant is StdInvariant, Test {
     /// Cumulative emissions never exceed the hard pool cap.
     function invariant_distributionWithinPool() public view {
         assertLe(rewards.totalDistributed(), rewards.TOTAL_REWARD_POOL(), "distribution exceeded pool cap");
+    }
+
+    /// @notice Deterministic companion to invariant_distributionWithinPool: drive
+    ///         distribution PAST the pool cap and prove the cap is (a) reached
+    ///         exactly, (b) never exceeded even mid-loop, and (c) hard — the next
+    ///         payout reverts RewardPoolExhausted. This removes the reliance on
+    ///         the fuzzer happening to reach 35M within a run.
+    function test_poolCapEnforcedAndNeverExceeded() public {
+        uint256 cap = rewards.TOTAL_REWARD_POOL();
+
+        vm.prank(address(handler));
+        rewards.stake(MIN_STAKE); // handler becomes an active executor
+
+        // 5M per payout, 36M funded, 35M cap => ~7 payouts reach the cap.
+        bool reached;
+        for (uint256 i = 0; i < 50; i++) {
+            vm.prank(address(handler));
+            try rewards.distributeReward(address(handler), 1) {
+                assertLe(rewards.totalDistributed(), cap, "exceeded pool cap mid-loop");
+            } catch {
+                reached = true; // RewardPoolExhausted once the cap is hit
+                break;
+            }
+        }
+
+        assertTrue(reached, "distribution never exhausted the pool");
+        assertEq(rewards.totalDistributed(), cap, "distribution did not reach the pool cap exactly");
+
+        // Cap is hard: any further payout reverts.
+        vm.prank(address(handler));
+        vm.expectRevert(ExecutorRewards.RewardPoolExhausted.selector);
+        rewards.distributeReward(address(handler), 1);
     }
 }
