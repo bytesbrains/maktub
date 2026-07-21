@@ -1,0 +1,128 @@
+name: Executor image
+
+# The executor image was published by hand, so the Dockerfile on `main` and the
+# image users actually `docker pull` drifted apart — the root-running, floating-base
+# image of issue #15 stayed live for a month after the fix merged. This workflow
+# closes that gap: every merge that touches executor/ republishes `:dev`.
+#
+# Deliberately NOT part of ci.yml — it needs registry credentials, and it must not
+# run on fork PRs, where secrets are unavailable by design.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "executor/**"
+      - ".github/workflows/executor-image.yml"
+  push:
+    branches: [main]
+    paths:
+      - "executor/**"
+      - ".github/workflows/executor-image.yml"
+  # Cutting a durable version tag (e.g. 0.1.0-dev.3) stays a deliberate human act.
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: "Immutable version tag to publish alongside :dev (e.g. 0.1.0-dev.3). Leave empty to publish :dev only."
+        required: false
+        type: string
+
+# A newer merge to main supersedes an in-flight build of the same ref. Never
+# cancel a release run mid-push: a half-pushed manifest is worse than a slow one.
+concurrency:
+  group: executor-image-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  executor-image:
+    name: Executor image (build, verify, publish)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      IMAGE: bytesbrains/maktub-executor
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Base image must be digest-pinned
+        # GATING, and the direct regression test for issue #15: a bare `FROM node:20-slim`
+        # means a re-tagged or compromised upstream lands silently in a published image.
+        # Bumping the pin is fine; dropping it is not.
+        run: |
+          if ! grep -qE '^FROM .+@sha256:[0-9a-f]{64}' executor/Dockerfile; then
+            echo "::error file=executor/Dockerfile,line=1::Base image is not pinned by digest. Use 'FROM node:20-slim@sha256:<digest>' (see issue #15)."
+            exit 1
+          fi
+          grep -E '^FROM ' executor/Dockerfile
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build (amd64) for verification
+        # Single-arch and loaded into the local daemon so the next step can actually
+        # run it. The multi-arch push below reuses this layer cache.
+        uses: docker/build-push-action@v6
+        with:
+          context: executor
+          platforms: linux/amd64
+          load: true
+          tags: maktub-executor:verify
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image must not run as root
+        # The other half of issue #15. The executor holds a hot PRIVATE_KEY in env,
+        # so uid 0 in the container is a blast-radius we don't need to carry.
+        run: |
+          uid=$(docker run --rm --entrypoint id maktub-executor:verify -u)
+          echo "Container uid: $uid"
+          if [ "$uid" = "0" ]; then
+            echo "::error file=executor/Dockerfile::Image runs as root. Add a 'USER node' directive (see issue #15)."
+            exit 1
+          fi
+
+      - name: Image boots
+        # Smoke test: with no .env the executor must reach its own config check and
+        # reject the missing key. Anything else (module-not-found, permission denied
+        # from the non-root switch) means the image is broken regardless of uid.
+        run: |
+          out=$(docker run --rm maktub-executor:verify node src/index.js --status 2>&1 || true)
+          echo "$out"
+          if ! echo "$out" | grep -q "PRIVATE_KEY is missing"; then
+            echo "::error::Executor did not reach its config check — the image is broken."
+            exit 1
+          fi
+
+      # ---- Everything below publishes. PRs stop here. ----
+
+      - name: Resolve published tags
+        if: github.event_name != 'pull_request' && github.repository == 'bytesbrains/maktub'
+        id: tags
+        run: |
+          tags="${IMAGE}:dev,${IMAGE}:sha-${GITHUB_SHA::12}"
+          version="${{ inputs.version_tag }}"
+          if [ -n "$version" ]; then
+            tags="${tags},${IMAGE}:${version}"
+          fi
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+          echo "Publishing: $tags"
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request' && github.repository == 'bytesbrains/maktub'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push (linux/amd64 + linux/arm64)
+        # Multi-arch to match what the README promises. No `:latest` — the README
+        # states there deliberately isn't one until mainnet.
+        if: github.event_name != 'pull_request' && github.repository == 'bytesbrains/maktub'
+        uses: docker/build-push-action@v6
+        with:
+          context: executor
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
