@@ -1,0 +1,59 @@
+# wrokin Verified Security Hunter — added for you by "Enable" in the wrokin
+# dashboard. Advisory: it comments findings and NEVER blocks your PR (exits 0).
+# Runs on every pull request, and on demand via `workflow_dispatch`.
+#
+# It runs the signed wrokin-hunter image directly (`docker run`) rather than
+# `uses:`-ing an action, because the action lives in a PRIVATE repo that your repo
+# can't resolve — and running the image with the Docker socket mounted also lets a
+# proof-of-concept detonate (a container action never gets the socket).
+name: wrokin security hunter
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to hunt"
+        required: false
+      level:
+        description: "Scan level"
+        required: false
+        default: "stakeout"
+        type: choice
+        options: [foray, stakeout, expedition]
+
+permissions:
+  contents: read
+  packages: read # pull the wrokin-hunter image from GHCR
+  id-token: write # prove identity to wrokin via OIDC
+  pull-requests: write # post the advisory comment
+
+jobs:
+  hunt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR (pull the wrokin-hunter image)
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Hunt (Docker socket mounted so a PoC can detonate)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          INPUT_API_BASE: https://pi-backend.sandeep-49e.workers.dev
+          INPUT_PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          INPUT_LEVEL: ${{ inputs.level }}
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$GITHUB_WORKSPACE":"$GITHUB_WORKSPACE" \
+            -v "$RUNNER_TEMP":"$RUNNER_TEMP" \
+            -v "$GITHUB_EVENT_PATH":"$GITHUB_EVENT_PATH":ro \
+            -w "$GITHUB_WORKSPACE" \
+            -e TMPDIR="$RUNNER_TEMP" \
+            -e GITHUB_REPOSITORY -e GITHUB_SHA -e GITHUB_WORKSPACE \
+            -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_REF_NAME \
+            -e ACTIONS_ID_TOKEN_REQUEST_URL -e ACTIONS_ID_TOKEN_REQUEST_TOKEN \
+            -e GITHUB_TOKEN \
+            -e INPUT_API_BASE \
+            -e INPUT_PR_NUMBER \
+            -e INPUT_LEVEL \
+            ghcr.io/bytesbrains/wrokin-hunter@sha256:cba79ef888d8caa203a82f954e28027f048b0d7dfd5f266d04a62b9b494324e6
