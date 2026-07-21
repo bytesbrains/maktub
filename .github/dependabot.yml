@@ -20,3 +20,18 @@ updates:
     commit-message:
       prefix: "chore(executor)"
     open-pull-requests-limit: 2
+
+  # Same trade, one layer up: the publish workflow pins its actions by commit SHA
+  # (#17), because a moved tag would run changed code on the runner that holds the
+  # Docker Hub push token. Pinned SHAs go stale silently, so Dependabot bumps them —
+  # it rewrites the SHA and the trailing version comment together.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "security"
+    commit-message:
+      prefix: "chore(ci)"
+    open-pull-requests-limit: 3
