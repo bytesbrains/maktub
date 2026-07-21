@@ -1,0 +1,41 @@
+# wrokin Verified Security Hunter — added for you by "Enable" in the wrokin
+# dashboard. Advisory: it comments findings and NEVER blocks your PR (exits 0).
+# Runs on every pull request, and on demand when a maintainer comments
+# `/pi hunter <level>` on a PR.
+#
+# NOTE: proof-by-execution (detonating a PoC) needs the Docker socket, which a
+# container action does not receive on GitHub-hosted runners — without it the hunt
+# runs in reasoning-only mode (findings stay "candidate", not "confirmed").
+name: wrokin security hunter
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to hunt"
+        required: false
+      level:
+        description: "Scan level"
+        required: false
+        default: "hunt"
+        type: choice
+        options: [sweep, hunt, proof]
+
+permissions:
+  contents: read
+  packages: read # pull the wrokin-hunter image
+  id-token: write # prove identity to wrokin via OIDC
+  pull-requests: write # post the advisory comment
+
+jobs:
+  hunt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bytesbrains/wrokin/actions/wrokin-hunter@main
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          api_base: https://api.wrok.in
+          pr_number: ${{ github.event.pull_request.number || inputs.pr_number }}
