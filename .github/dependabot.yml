@@ -1,0 +1,22 @@
+version: 2
+
+# Pinning the executor's base image by digest (issue #15) stops a compromised or
+# re-tagged upstream landing silently — but it also means the pin no longer picks
+# up Debian/Node security fixes on its own. Dependabot is the other half of that
+# trade: it opens a PR when node:20-slim is rebuilt, so the bump stays deliberate
+# and reviewed rather than automatic or forgotten.
+#
+# Scoped to Docker on purpose. The npm trees (root/contracts, sdk/, executor/) are
+# not enrolled here: contract dependency bumps get reviewed against the deployed
+# immutable contracts, not merged on a schedule.
+updates:
+  - package-ecosystem: "docker"
+    directory: "/executor"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "security"
+    commit-message:
+      prefix: "chore(executor)"
+    open-pull-requests-limit: 2
