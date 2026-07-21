@@ -42,26 +42,42 @@ jobs:
     env:
       IMAGE: bytesbrains/maktub-executor
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Base image must be digest-pinned
         # GATING, and the direct regression test for issue #15: a bare `FROM node:20-slim`
         # means a re-tagged or compromised upstream lands silently in a published image.
         # Bumping the pin is fine; dropping it is not.
         run: |
-          if ! grep -qE '^FROM .+@sha256:[0-9a-f]{64}' executor/Dockerfile; then
-            echo "::error file=executor/Dockerfile,line=1::Base image is not pinned by digest. Use 'FROM node:20-slim@sha256:<digest>' (see issue #15)."
+          # EVERY stage, not just one: a multi-stage build whose builder stage is
+          # unpinned is still a supply-chain hole, even though the stage is discarded —
+          # the untrusted image runs `npm ci` on the runner. Stage aliases (FROM build)
+          # are internal references, not registry pulls, so they're exempt.
+          stages=$(grep -cE '^[[:space:]]*FROM[[:space:]]' executor/Dockerfile || true)
+          if [ "$stages" -eq 0 ]; then
+            echo "::error file=executor/Dockerfile::No FROM line found — refusing to publish an unverifiable image."
             exit 1
           fi
-          grep -E '^FROM ' executor/Dockerfile
+          aliases=$(grep -oiE '^[[:space:]]*FROM[[:space:]]+\S+[[:space:]]+AS[[:space:]]+(\S+)' executor/Dockerfile | awk '{print $NF}' || true)
+          unpinned=$(grep -E '^[[:space:]]*FROM[[:space:]]' executor/Dockerfile | grep -vE '@sha256:[0-9a-f]{64}' || true)
+          for alias in $aliases; do
+            unpinned=$(printf '%s\n' "$unpinned" | grep -viE "^[[:space:]]*FROM[[:space:]]+${alias}([[:space:]]|$)" || true)
+          done
+          if [ -n "$unpinned" ]; then
+            echo "::error file=executor/Dockerfile,line=1::Every base image must be pinned by digest — 'FROM image:tag@sha256:<digest>' (see issue #15). Unpinned:"
+            printf '%s\n' "$unpinned"
+            exit 1
+          fi
+          echo "All $stages FROM line(s) digest-pinned:"
+          grep -E '^[[:space:]]*FROM[[:space:]]' executor/Dockerfile
 
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Build (amd64) for verification
         # Single-arch and loaded into the local daemon so the next step can actually
         # run it. The multi-arch push below reuses this layer cache.
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: executor
           platforms: linux/amd64
@@ -127,7 +143,7 @@ jobs:
 
       - name: Log in to Docker Hub
         if: github.event_name != 'pull_request' && github.repository == 'bytesbrains/maktub'
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -136,7 +152,7 @@ jobs:
         # Multi-arch to match what the README promises. No `:latest` — the README
         # states there deliberately isn't one until mainnet.
         if: github.event_name != 'pull_request' && github.repository == 'bytesbrains/maktub'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: executor
           platforms: linux/amd64,linux/arm64
