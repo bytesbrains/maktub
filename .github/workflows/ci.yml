@@ -137,7 +137,7 @@ jobs:
       # `@openzeppelin/` onto — halmos builds via forge, which resolves through it.
       - run: npm ci
       - uses: foundry-rs/foundry-toolchain@v1
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       # Pinned: halmos is young and its symbolic-execution coverage shifts
