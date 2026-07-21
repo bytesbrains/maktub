@@ -3,8 +3,8 @@ version: 2
 # Pinning the executor's base image by digest (issue #15) stops a compromised or
 # re-tagged upstream landing silently — but it also means the pin no longer picks
 # up Debian/Node security fixes on its own. Dependabot is the other half of that
-# trade: it opens a PR when node:20-slim is rebuilt, so the bump stays deliberate
-# and reviewed rather than automatic or forgotten.
+# trade: it opens a PR when the pinned node:*-slim image is rebuilt, so the bump
+# stays deliberate and reviewed rather than automatic or forgotten.
 #
 # Scoped to Docker on purpose. The npm trees (root/contracts, sdk/, executor/) are
 # not enrolled here: contract dependency bumps get reviewed against the deployed
@@ -20,3 +20,27 @@ updates:
     commit-message:
       prefix: "chore(executor)"
     open-pull-requests-limit: 2
+    ignore:
+      # Digest refreshes and minor/patch bumps still flow — that's the security
+      # value of the pin. Node MAJORS don't: nothing in CI exercises executor/src
+      # (the contract suites don't touch it), so the only compatibility signal for
+      # a new runtime is the image boot smoke test in executor-image.yml. A major
+      # deserves a deliberate PR that says so, not a routine-looking refresh.
+      # Bumping majors stays easy — open it by hand, or drop this block.
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
+
+  # Same trade, one layer up: the publish workflow pins its actions by commit SHA
+  # (#17), because a moved tag would run changed code on the runner that holds the
+  # Docker Hub push token. Pinned SHAs go stale silently, so Dependabot bumps them —
+  # it rewrites the SHA and the trailing version comment together.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "security"
+    commit-message:
+      prefix: "chore(ci)"
+    open-pull-requests-limit: 3
