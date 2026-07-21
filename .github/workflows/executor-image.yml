@@ -85,10 +85,16 @@ jobs:
         # Smoke test: with no .env the executor must reach its own config check and
         # reject the missing key. Anything else (module-not-found, permission denied
         # from the non-root switch) means the image is broken regardless of uid.
+        #
+        # COUPLING: the string below is asserted against the config error raised in
+        # executor/src/config.js (normalizePrivateKey / assertConfig). It is matched
+        # loosely — "PRIVATE_KEY" plus "missing" — so wording tweaks don't break the
+        # gate, but if that error is renamed or removed, update this step in the same
+        # PR. A gate that silently stops asserting is worse than no gate.
         run: |
           out=$(docker run --rm maktub-executor:verify node src/index.js --status 2>&1 || true)
           echo "$out"
-          if ! echo "$out" | grep -q "PRIVATE_KEY is missing"; then
+          if ! echo "$out" | grep -qE 'PRIVATE_KEY.*(missing|malformed)'; then
             echo "::error::Executor did not reach its config check — the image is broken."
             exit 1
           fi
@@ -98,10 +104,22 @@ jobs:
       - name: Resolve published tags
         if: github.event_name != 'pull_request' && github.repository == 'bytesbrains/maktub'
         id: tags
+        # version_tag arrives via env, never inlined as ${{ }} into the script body:
+        # Actions substitutes expressions textually *before* the shell parses them, so
+        # an inline value could close the quote and run arbitrary commands on a runner
+        # that later holds registry credentials. Through env it is only ever data.
+        env:
+          VERSION_TAG: ${{ inputs.version_tag }}
         run: |
           tags="${IMAGE}:dev,${IMAGE}:sha-${GITHUB_SHA::12}"
-          version="${{ inputs.version_tag }}"
+          version="$VERSION_TAG"
           if [ -n "$version" ]; then
+            # Belt and braces: reject anything that isn't a legal Docker tag, so a
+            # typo can't publish a junk tag and nothing odd reaches the registry.
+            if ! printf '%s' "$version" | grep -qE '^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$'; then
+              echo "::error::version_tag '$version' is not a valid Docker tag ([A-Za-z0-9_][A-Za-z0-9._-]*, max 128 chars)."
+              exit 1
+            fi
             tags="${tags},${IMAGE}:${version}"
           fi
           echo "tags=$tags" >> "$GITHUB_OUTPUT"
