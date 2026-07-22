@@ -52,17 +52,36 @@ jobs:
           # EVERY stage, not just one: a multi-stage build whose builder stage is
           # unpinned is still a supply-chain hole, even though the stage is discarded —
           # the untrusted image runs `npm ci` on the runner. Stage aliases (FROM build)
-          # are internal references, not registry pulls, so they're exempt.
+          # are internal references, not registry pulls, so they're exempt — but only
+          # when the alias is defined on an EARLIER line. Docker resolves a name
+          # against the registry unless a prior stage defined it, so `FROM ubuntu`
+          # before `FROM ... AS ubuntu` is an unpinned pull masquerading as a stage
+          # reference and must fail the gate (issue #21). Hence a single sequential
+          # pass, not global grep filtering: aliases only exempt lines below them.
           stages=$(grep -cE '^[[:space:]]*FROM[[:space:]]' executor/Dockerfile || true)
           if [ "$stages" -eq 0 ]; then
             echo "::error file=executor/Dockerfile::No FROM line found — refusing to publish an unverifiable image."
             exit 1
           fi
-          aliases=$(grep -oiE '^[[:space:]]*FROM[[:space:]]+\S+[[:space:]]+AS[[:space:]]+(\S+)' executor/Dockerfile | awk '{print $NF}' || true)
-          unpinned=$(grep -E '^[[:space:]]*FROM[[:space:]]' executor/Dockerfile | grep -vE '@sha256:[0-9a-f]{64}' || true)
-          for alias in $aliases; do
-            unpinned=$(printf '%s\n' "$unpinned" | grep -viE "^[[:space:]]*FROM[[:space:]]+${alias}([[:space:]]|$)" || true)
-          done
+          unpinned=$(awk '
+            {
+              if (tolower($0) !~ /^[ \t]*from[ \t]/) next
+              n = split($0, tok, /[ \t]+/)
+              img = ""; alias = ""; seen_from = 0
+              for (i = 1; i <= n; i++) {
+                t = tok[i]
+                if (t == "") continue                              # leading whitespace
+                if (!seen_from) { if (tolower(t) == "from") seen_from = 1; continue }
+                if (img == "") { if (t ~ /^--/) continue; img = t; continue }  # skip flags (--platform=...)
+                if (tolower(t) == "as" && i < n) alias = tolower(tok[i + 1])
+              }
+              # Exempt only references to stages already defined ABOVE this line
+              # (stage names are case-insensitive); everything else is a registry
+              # pull and must carry a digest.
+              if (!(tolower(img) in defined) && img !~ /@sha256:[0-9a-f]{64}/) print
+              if (alias != "") defined[alias] = 1
+            }
+          ' executor/Dockerfile)
           if [ -n "$unpinned" ]; then
             echo "::error file=executor/Dockerfile,line=1::Every base image must be pinned by digest — 'FROM image:tag@sha256:<digest>' (see issue #15). Unpinned:"
             printf '%s\n' "$unpinned"
