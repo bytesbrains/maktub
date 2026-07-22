@@ -72,12 +72,18 @@ jobs:
                 t = tok[i]
                 if (t == "") continue                              # leading whitespace
                 if (!seen_from) { if (tolower(t) == "from") seen_from = 1; continue }
-                if (img == "") { if (t ~ /^--/) continue; img = t; continue }  # skip flags (--platform=...)
+                # Skip flags, but only in the `--flag=value` form — the only syntax
+                # Docker accepts. A bare `--platform value` is a parse error, and by
+                # NOT skipping it the bare flag becomes the "image", fails the digest
+                # check, and the gate stays fail-closed on malformed FROM lines.
+                if (img == "") { if (t ~ /^--[A-Za-z-]+=/) continue; img = t; continue }
                 if (tolower(t) == "as" && i < n) alias = tolower(tok[i + 1])
               }
               # Exempt only references to stages already defined ABOVE this line
-              # (stage names are case-insensitive); everything else is a registry
-              # pull and must carry a digest.
+              # (stage names are case-insensitive) and the reserved built-in
+              # `scratch` (an empty filesystem, never a registry pull); everything
+              # else is a registry pull and must carry a digest.
+              if (tolower(img) == "scratch") next
               if (!(tolower(img) in defined) && img !~ /@sha256:[0-9a-f]{64}/) print
               if (alias != "") defined[alias] = 1
             }
