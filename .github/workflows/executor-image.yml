@@ -84,7 +84,20 @@ jobs:
               # `scratch` (an empty filesystem, never a registry pull); everything
               # else is a registry pull and must carry a digest.
               if (tolower(img) == "scratch") next
-              if (!(tolower(img) in defined) && img !~ /@sha256:[0-9a-f]{64}/) print
+              # Digest test without a {64} interval expression: mawk builds older
+              # than 2023 treat {64} as literal text, silently breaking the match
+              # (issues #26/#27; the current runner mawk is fine, but the gate must
+              # not depend on which awk it runs under). index/length/substr are
+              # portable to every awk — and stricter than the old regex: exactly
+              # 64 lowercase hex chars to the end of the token, not 64-or-more
+              # anywhere inside it.
+              pinned = 0
+              p = index(img, "@sha256:")
+              if (p > 0) {
+                d = substr(img, p + 8)
+                if (length(d) == 64 && d !~ /[^0-9a-f]/) pinned = 1
+              }
+              if (!(tolower(img) in defined) && !pinned) print
               if (alias != "") defined[alias] = 1
             }
           ' executor/Dockerfile)
