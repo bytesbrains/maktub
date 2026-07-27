@@ -173,7 +173,7 @@ jobs:
         run: node scripts/check-coverage.mjs
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: |
@@ -258,7 +258,7 @@ jobs:
         run: node scripts/check-aderyn.mjs aderyn-report.json
       - name: Upload Aderyn report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aderyn-report
           path: aderyn-report.md
