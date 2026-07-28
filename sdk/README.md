@@ -10,6 +10,43 @@ npm install @bytesbrains/maktub-sdk ethers
 
 Requires `ethers` v6 as a peer dependency.
 
+## Entry points
+
+The package ships both ESM and CommonJS, and is split so you can take only the
+part you need.
+
+| Import | Contains | Pulls in |
+|---|---|---|
+| `@bytesbrains/maktub-sdk` | `MaktubClient`, contract wrappers, crypto, types, errors | `ethers` |
+| `@bytesbrains/maktub-sdk/crypto` | Reading-key derivation, ECIES, hybrid envelope | `@noble/*` only |
+| `@bytesbrains/maktub-sdk/veil` | Veil — time-confidential Beats (**preview**) | WebAssembly; **Node only** |
+
+```ts
+// Everything.
+import { MaktubClient } from "@bytesbrains/maktub-sdk";
+
+// Just the crypto — no ethers, no WASM.
+import { deriveReadingKeyFromPrfOutput } from "@bytesbrains/maktub-sdk/crypto";
+```
+
+**Browser clients should import from `/crypto`.** It has no WebAssembly
+anywhere in its module graph, which means the origin doing key derivation does
+not need `wasm-unsafe-eval` in its CSP and can keep `script-src 'self'`. That
+matters more than the bundle size: a reading key is long-lived and its published
+half is write-once, so a single injected script that reads it decrypts
+everything that user has ever received, with no way to rotate.
+
+`/veil` is Node-only by construction — its pairing crypto is wasm-bindgen glue
+built for the nodejs target, which reads the `.wasm` off disk at import time.
+
+Two data files are also published, for language ports and for downstreams that
+regenerate their own constants:
+
+```js
+require("@bytesbrains/maktub-sdk/vectors/reading-key.json");        // cross-language vectors
+require("@bytesbrains/maktub-sdk/deployments/base-sepolia.json");   // address carrier
+```
+
 ## Quick Start
 
 ```typescript

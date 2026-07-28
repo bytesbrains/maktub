@@ -1,0 +1,19 @@
+// ESM build → dist/esm. This is the tree browser bundlers see.
+//
+// `src/veil` is deliberately excluded. Veil's pairing crypto is the vendored
+// wasm-bindgen glue built for the *nodejs* target: it reads the `.wasm` off disk
+// with `require('fs')` and instantiates it at module-evaluation time. That is
+// not merely un-tree-shakeable in a browser bundle, it cannot run there at all,
+// and instantiating WebAssembly costs the consuming origin a
+// `wasm-unsafe-eval` in its CSP. Keeping it out of this tree is what lets the
+// root and `./crypto` entries be imported with no WASM anywhere in the graph.
+//
+// Veil is still shipped — from the CJS tree, under the `./veil` subpath.
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ES2020",
+    "outDir": "dist/esm"
+  },
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "src/veil"]
+}
