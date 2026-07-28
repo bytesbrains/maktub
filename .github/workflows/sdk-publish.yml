@@ -1,18 +1,32 @@
 name: SDK publish
 
 # The SDK's first three versions went to npm by hand from a laptop, and the gap
-# that opens is on the registry right now: `main` carries a ten-contract carrier
-# while npm's newest tarball has eight, and the `latest` dist-tag still points at
-# 0.1.0-dev.2, which has no carrier at all. That is the same drift executor-image.yml
-# was written to close for the Docker image (issue #15) — the artifact users
-# actually install diverging from the source that CI proved green.
+# that opens had shown up on the registry: `main` carried a ten-contract carrier
+# while npm's newest tarball had eight (issue #32). That is the same drift
+# executor-image.yml was written to close for the Docker image (issue #15) — the
+# artifact users actually install diverging from the source that CI proved green.
+# 0.1.0-dev.4 was the first version published by this workflow.
+#
+# NOTE: the `latest` dist-tag still points at 0.1.0-dev.2, which carries no
+# deployment carrier at all, so a bare `npm install` resolves to it. Moving it is
+# deliberately outside this workflow — see the dist-tag guard below.
 #
 # Authentication is npm **Trusted Publishing** (OIDC): the registry is configured
 # with this repository + this workflow *filename* as a trusted publisher, so there
-# is no NPM_TOKEN secret to leak or rotate. Two consequences worth knowing before
-# you edit this file:
-#   - RENAMING THIS FILE BREAKS PUBLISHING until the trusted publisher entry on
-#     npmjs.com is updated to match the new name.
+# is no NPM_TOKEN secret to leak or rotate. The entry on npmjs.com, under
+# @bytesbrains/maktub-sdk -> Settings -> Trusted Publisher, must read exactly:
+#
+#   Publisher          GitHub Actions
+#   Organization/user  bytesbrains          (the GitHub org, not the npm scope)
+#   Repository         maktub
+#   Workflow filename  sdk-publish.yml      (basename only — npm adds .github/workflows/)
+#   Environment        (empty)              (this job declares no `environment:`)
+#   Allowed actions    publish
+#
+# Consequences worth knowing before you edit this file:
+#   - RENAMING THIS FILE BREAKS PUBLISHING until that entry is updated to match.
+#   - Adding an `environment:` to this job breaks it too, unless the entry gains
+#     the same name.
 #   - Provenance attestations are generated automatically under trusted publishing,
 #     which is why no --provenance flag appears below. It needs `id-token: write`.
 #
@@ -75,7 +89,7 @@ jobs:
           echo "::error::Refusing to publish from ${GITHUB_REF}. Re-run this workflow against main."
           exit 1
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           # NO registry-url — deliberately, and it is not an oversight to "fix".
@@ -88,14 +102,24 @@ jobs:
           # and the registry rejects the garbage token with
           #   npm error code E404 ... PUT https://registry.npmjs.org/@bytesbrains%2fmaktub-sdk
           # E404, not E401 — npm reports missing rather than unauthorized so it does
-          # not leak which private packages exist, which makes this read like a
-          # misconfigured trusted publisher when it is really a shadowed credential.
-          # That is exactly how it failed the first time (run 30397586602).
+          # not leak which private packages exist, which makes a shadowed credential
+          # read like a misconfigured trusted publisher.
           #
           # Omitting it leaves no user .npmrc and NODE_AUTH_TOKEN unset, so npm falls
           # back to its default registry (registry.npmjs.org — the same host) and
           # authenticates via OIDC. Verified on a runner: with registry-url absent,
           # ACTIONS_ID_TOKEN_REQUEST_URL is set and no npmrc is written.
+          #
+          # Removing it is NECESSARY but was not SUFFICIENT — worth stating plainly,
+          # because the bring-up history reads misleadingly otherwise. Publishing
+          # failed three times:
+          #   E404       (run 30397586602) — registry-url's placeholder token shadowed OIDC
+          #   ENEEDAUTH  (runs 30398261989, 30398531344) — credential path clear, but the
+          #              trusted-publisher entry on npmjs.com did not match this workflow
+          # The npmjs entry was corrected and run 30398802432 published. So both had to
+          # be right; fixing either alone still failed, with a different error each time.
+          # If publishing breaks again, check BOTH, and read the ENEEDAUTH signature as
+          # "npm never attempted the exchange" — npm logs nothing at all in that case.
           cache: "npm"
           cache-dependency-path: sdk/package-lock.json
 
@@ -122,6 +146,12 @@ jobs:
         #   2. A configured _authToken -> npm prefers it and never tries OIDC, so a
         #      stray registry-url or NODE_AUTH_TOKEN silently disables the whole
         #      mechanism.
+        #
+        # This gate cannot see the third failure mode, since it lives on npmjs.com and
+        # not on the runner: a trusted-publisher entry that does not match this
+        # repository + workflow filename. That one surfaces later as ENEEDAUTH from
+        # `npm publish`, with no preceding log line, because npm does not attempt the
+        # exchange at all. Green here means the runner side is sound — nothing more.
         working-directory: .
         run: |
           if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
