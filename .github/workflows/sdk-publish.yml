@@ -7,9 +7,16 @@ name: SDK publish
 # artifact users actually install diverging from the source that CI proved green.
 # 0.1.0-dev.4 was the first version published by this workflow.
 #
-# NOTE: the `latest` dist-tag still points at 0.1.0-dev.2, which carries no
-# deployment carrier at all, so a bare `npm install` resolves to it. Moving it is
-# deliberately outside this workflow — see the dist-tag guard below.
+# POLICY: `latest` tracks the newest published version, always — a bare
+# `npm install` should get current code. Publishes therefore default to `latest`,
+# including pre-releases, which is a deliberate departure from the npm convention
+# that `latest` means "newest stable". Everything here is a 0.1.0-dev.x today, and
+# honouring that convention had left `npm install` resolving to 0.1.0-dev.2, a
+# tarball with no deployment carrier in it.
+#
+# `mode: move-tag` repoints a tag at a version already on the registry — the only
+# way to correct a tag after the fact, since a published version cannot be
+# re-published.
 #
 # Authentication is npm **Trusted Publishing** (OIDC): the registry is configured
 # with this repository + this workflow *filename* as a trusted publisher, so there
@@ -40,16 +47,28 @@ name: SDK publish
 on:
   workflow_dispatch:
     inputs:
-      dist_tag:
-        description: "npm dist-tag to publish under. Pre-releases belong on 'dev'; 'latest' is what a bare `npm install` resolves."
+      mode:
+        description: "publish = build and publish package.json's version. move-tag = only repoint a dist-tag at an already-published version (nothing is built or published)."
         required: true
-        default: dev
+        default: publish
         type: choice
         options:
-          - dev
+          - publish
+          - move-tag
+      dist_tag:
+        description: "Which dist-tag to set. 'latest' is what a bare `npm install` resolves — it should normally track the newest version."
+        required: true
+        default: latest
+        type: choice
+        options:
           - latest
+          - dev
+      move_tag_version:
+        description: "move-tag mode only: the already-published version to point the tag at (e.g. 0.1.0-dev.4)."
+        required: false
+        type: string
       dry_run:
-        description: "Run every gate and pack the tarball, but do not publish. Leave checked to rehearse."
+        description: "Run every gate but change nothing on the registry. Leave checked to rehearse."
         required: false
         default: true
         type: boolean
@@ -132,7 +151,10 @@ jobs:
           npm install -g npm@latest
           npm --version
 
-      - run: npm ci
+      - name: Install dependencies
+        # move-tag builds nothing, so it needs no node_modules.
+        if: inputs.mode == 'publish'
+        run: npm ci
 
       - name: OIDC must be available and unshadowed
         # Turns the two ways trusted publishing silently breaks into named failures
@@ -177,6 +199,7 @@ jobs:
       # ---- Everything below this line must pass before anything is published. ----
 
       - name: Verify (typecheck, build, tests)
+        if: inputs.mode == 'publish'
         # ci.yml already ran these on the merge commit, but re-running them here is
         # the point: this job publishes the tree it just built, so the artifact that
         # reaches the registry is the artifact that was proven green — not one that
@@ -188,6 +211,7 @@ jobs:
           npm test
 
       - name: Version must not already be on the registry
+        if: inputs.mode == 'publish'
         # npm rejects a duplicate version anyway, but it does so *after* the publish
         # request — a confusing 403 that reads like an auth failure. Fail here
         # instead, with the actual reason and the fix.
@@ -206,32 +230,33 @@ jobs:
           } >> "$GITHUB_OUTPUT"
         id: meta
 
-      - name: Guard the dist-tag against the version's pre-release status
-        # The registry currently shows why this gate exists: `latest` points at
-        # 0.1.0-dev.2 while the newer dev.3 sits on `dev`, so a bare
-        # `npm install @bytesbrains/maktub-sdk` resolves to a tarball with no
-        # deployment carrier in it. A pre-release version must not become what
-        # unpinned consumers get by default, and a stable version parked on `dev`
-        # is almost certainly a mis-click.
+      - name: Note the dist-tag being used
+        if: inputs.mode == 'publish'
+        # This used to REFUSE to publish a pre-release to `latest`, on the usual npm
+        # convention that `latest` should mean "newest stable". That guard is gone by
+        # an explicit decision: for this project `latest` must always point at the
+        # newest published version, so a bare `npm install` gets current code. Every
+        # version is a 0.1.0-dev.x pre-release today, and blocking them from `latest`
+        # left `npm install` resolving to 0.1.0-dev.2 — a tarball with no deployment
+        # carrier at all. Being technically correct about the tag was worse for
+        # consumers than the convention it protected.
+        #
+        # Recorded so nobody "restores" the guard as a fix: it is informational now.
         env:
           DIST_TAG: ${{ inputs.dist_tag }}
           VERSION: ${{ steps.meta.outputs.version }}
         run: |
           case "$VERSION" in
-            *-*) prerelease=1 ;;
-            *)   prerelease=0 ;;
+            *-*) note="pre-release" ;;
+            *)   note="stable" ;;
           esac
-          if [ "$prerelease" = "1" ] && [ "$DIST_TAG" = "latest" ]; then
-            echo "::error::Refusing to publish pre-release ${VERSION} to 'latest' — a bare \`npm install\` would resolve to it. Publish to 'dev', or cut a stable version."
-            exit 1
+          echo "Version ${VERSION} (${note}) → dist-tag '${DIST_TAG}'."
+          if [ "$DIST_TAG" = "latest" ]; then
+            echo "::notice::After this publish, a bare 'npm install' resolves to ${VERSION}."
           fi
-          if [ "$prerelease" = "0" ] && [ "$DIST_TAG" = "dev" ]; then
-            echo "::error::${VERSION} is a stable version but the dist-tag is 'dev'. Publish stable releases to 'latest'."
-            exit 1
-          fi
-          echo "Version ${VERSION} (prerelease=${prerelease}) → dist-tag '${DIST_TAG}'."
 
       - name: Tarball must carry the deployment carrier and the vectors
+        if: inputs.mode == 'publish'
         # Regression gate for issue #32. Both files are *generated into* the package
         # (the carrier by scripts/gen-addresses.mjs, the vectors by copy:vectors from
         # the repo-root source of truth), so a build-script or package.json#files
@@ -280,7 +305,7 @@ jobs:
           rm -f "$tarball"
 
       - name: Publish (dry run)
-        if: inputs.dry_run
+        if: inputs.mode == 'publish' && inputs.dry_run
         env:
           DIST_TAG: ${{ inputs.dist_tag }}
         run: |
@@ -288,7 +313,7 @@ jobs:
           echo "::notice::DRY RUN — nothing was published. Re-run with 'dry_run' unchecked to publish for real."
 
       - name: Publish
-        if: ${{ !inputs.dry_run }}
+        if: ${{ inputs.mode == 'publish' && !inputs.dry_run }}
         # No NODE_AUTH_TOKEN, and no .npmrc — see the setup-node comment above.
         # Authentication is the OIDC token minted by the `id-token: write` permission
         # and exchanged with the registry, which also produces the provenance
@@ -298,26 +323,89 @@ jobs:
           DIST_TAG: ${{ inputs.dist_tag }}
         run: npm publish --tag "$DIST_TAG" --access public
 
+      # ---- move-tag mode: repoint a dist-tag at a version already on the registry ----
+      #
+      # Needed because a published version cannot be re-published, so `npm publish`
+      # can never fix a dist-tag after the fact. It is also the only CI route to make
+      # `latest` track the newest version when the newest version is already out.
+      #
+      # UNPROVEN AT TIME OF WRITING: npm's Trusted Publishing was designed around
+      # `npm publish`, and whether the OIDC exchange also authorises `npm dist-tag`
+      # is not something the docs settle. If this fails with ENEEDAUTH, the exchange
+      # does not cover it, and moving a tag stays a local `npm dist-tag add` run by a
+      # maintainer with 2FA. The npmjs trusted-publisher entry may also need a
+      # dist-tag action ticked under "Allowed actions".
+
+      - name: Resolve and validate the target version
+        if: inputs.mode == 'move-tag'
+        id: retag
+        env:
+          TARGET: ${{ inputs.move_tag_version }}
+        run: |
+          name=$(node -p "require('./package.json').name")
+          if [ -z "${TARGET:-}" ]; then
+            echo "::error::move-tag mode needs 'move_tag_version' (e.g. 0.1.0-dev.4)."
+            exit 1
+          fi
+          # Inverse of the publish-mode guard: here the version MUST already exist.
+          # Pointing a tag at a nonexistent version would leave `npm install` broken.
+          if ! npm view "${name}@${TARGET}" version >/dev/null 2>&1; then
+            echo "::error::${name}@${TARGET} is not published. A dist-tag can only point at an existing version."
+            exit 1
+          fi
+          echo "${name}@${TARGET} exists and can be tagged."
+          {
+            echo "name=${name}"
+            echo "version=${TARGET}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Move dist-tag (dry run)
+        if: inputs.mode == 'move-tag' && inputs.dry_run
+        env:
+          NAME: ${{ steps.retag.outputs.name }}
+          VERSION: ${{ steps.retag.outputs.version }}
+          DIST_TAG: ${{ inputs.dist_tag }}
+        run: |
+          echo "Would run: npm dist-tag add ${NAME}@${VERSION} ${DIST_TAG}"
+          echo "Current tags:"
+          npm view "$NAME" dist-tags
+          echo "::notice::DRY RUN — no tag was moved. Note this does NOT test authentication; only a real run does."
+
+      - name: Move dist-tag
+        if: ${{ inputs.mode == 'move-tag' && !inputs.dry_run }}
+        env:
+          NAME: ${{ steps.retag.outputs.name }}
+          VERSION: ${{ steps.retag.outputs.version }}
+          DIST_TAG: ${{ inputs.dist_tag }}
+        run: |
+          npm dist-tag add "${NAME}@${VERSION}" "$DIST_TAG"
+          echo "Tags now:"
+          npm view "$NAME" dist-tags
+
       - name: Summary
         if: success()
         env:
-          NAME: ${{ steps.meta.outputs.name }}
-          VERSION: ${{ steps.meta.outputs.version }}
+          NAME: ${{ steps.meta.outputs.name || steps.retag.outputs.name }}
+          VERSION: ${{ steps.meta.outputs.version || steps.retag.outputs.version }}
+          MODE: ${{ inputs.mode }}
           DIST_TAG: ${{ inputs.dist_tag }}
           DRY_RUN: ${{ inputs.dry_run }}
         run: |
           {
-            echo "### SDK publish"
+            echo "### SDK ${MODE}"
             echo
             echo "| | |"
             echo "|---|---|"
             echo "| Package | \`${NAME}\` |"
             echo "| Version | \`${VERSION}\` |"
+            echo "| Mode | \`${MODE}\` |"
             echo "| dist-tag | \`${DIST_TAG}\` |"
             echo "| Dry run | \`${DRY_RUN}\` |"
             echo
             if [ "$DRY_RUN" = "true" ]; then
-              echo "Nothing was published."
+              echo "Nothing changed on the registry."
+            elif [ "$MODE" = "move-tag" ]; then
+              echo "\`${DIST_TAG}\` now points at \`${VERSION}\`. Verify with \`npm view ${NAME} dist-tags\`."
             else
               echo "Published. Verify with \`npm view ${NAME} dist-tags\`."
             fi
