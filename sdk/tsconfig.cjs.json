@@ -1,0 +1,11 @@
+// CommonJS build → dist/cjs. Carries the whole surface, Veil included: the
+// vendored wasm-bindgen glue is a *nodejs*-target module that does
+// `require('fs').readFileSync(...)` at module-evaluation time, so it can only
+// live in a CJS tree (and only run under Node). See tsconfig.esm.json.
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "outDir": "dist/cjs"
+  }
+}

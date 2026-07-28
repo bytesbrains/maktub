@@ -291,6 +291,38 @@ jobs:
           fi
           echo "  packaged vectors are byte-identical to vectors/reading-key.json"
 
+          # Every entry point named in package.json#exports must actually be in
+          # the tarball. `npm run verify:packaging` already checks these against
+          # the working tree, but it cannot see package.json#files — so a build
+          # that is correct locally can still publish a package whose `exports`
+          # point at files nobody shipped. That failure is invisible until an
+          # install, where it surfaces as ERR_PACKAGE_PATH_NOT_EXPORTED or
+          # ERR_MODULE_NOT_FOUND with no hint of which condition was at fault,
+          # and it cannot be fixed in place: the version is burned (#39).
+          # The list goes to a file rather than through a pipe on purpose: a
+          # `while read` on the right-hand side of a pipe runs in a subshell,
+          # where `exit 1` ends the subshell and leaves the step green.
+          node -e '
+            const pkg = require("./package.json");
+            const out = [];
+            (function walk(node) {
+              if (typeof node === "string") { if (!node.includes("*")) out.push(node); return; }
+              for (const v of Object.values(node)) walk(v);
+            })(pkg.exports);
+            console.log([...new Set(out)].join("\n"));
+          ' > /tmp/exports-targets.txt
+
+          tar tzf "$tarball" > /tmp/tarball-listing.txt
+          while read -r target; do
+            [ -n "$target" ] || continue
+            entry="package/${target#./}"
+            if ! grep -qxF "$entry" /tmp/tarball-listing.txt; then
+              echo "::error file=sdk/package.json::exports names ${target}, but ${entry} is not in the tarball. Check package.json#files and the build scripts."
+              exit 1
+            fi
+            echo "  exports target present: ${target}"
+          done < /tmp/exports-targets.txt
+
           rm -f "$tarball"
 
       - name: Publish (dry run)

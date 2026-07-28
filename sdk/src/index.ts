@@ -132,13 +132,17 @@ export {
 } from "./errors/index.js";
 
 // ── Veil (time-confidential Beats — PREVIEW) ──────────────────────────────────
-export {
-  veilSeal,
-  veilOpen,
-  veilUnwrap,
-  combinePartials,
-  conditionIdentity,
-  beatExecutedCondition,
-  VEIL_CHAIN_ID,
-  VEIL_PREVIEW,
-} from "./veil/veil.js";
+//
+// Deliberately NOT re-exported here. Veil's pairing crypto is vendored
+// wasm-bindgen glue built for the *nodejs* target: it reads the `.wasm` off
+// disk with `require('fs')` and instantiates it at module-evaluation time. Any
+// re-export from this barrel made that a side effect of importing anything at
+// all — including a single HKDF function — which broke browser bundles outright
+// and, where it did load, cost the consuming origin a `wasm-unsafe-eval` in its
+// CSP (#39).
+//
+// Veil now lives behind its own subpath, and is Node-only by construction:
+//
+//   import { veilSeal } from "@bytesbrains/maktub-sdk/veil";
+//
+// Crypto with no WASM in the graph is `@bytesbrains/maktub-sdk/crypto`.

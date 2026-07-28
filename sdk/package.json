@@ -1,6 +1,6 @@
 {
   "name": "@bytesbrains/maktub-sdk",
-  "version": "0.1.0-dev.4",
+  "version": "0.1.0-dev.5",
   "description": "TypeScript SDK for the Maktub Protocol — decentralized conditional execution engine on Base L2",
   "author": "BytesBrains",
   "license": "MIT",
@@ -16,8 +16,41 @@
   "engines": {
     "node": ">=18"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    },
+    "./crypto": {
+      "import": {
+        "types": "./dist/esm/crypto/index.d.ts",
+        "default": "./dist/esm/crypto/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/crypto/index.d.ts",
+        "default": "./dist/cjs/crypto/index.js"
+      }
+    },
+    "./veil": {
+      "types": "./dist/cjs/veil/veil.d.ts",
+      "default": "./dist/cjs/veil/veil.js"
+    },
+    "./deployments/*": "./deployments/*",
+    "./vectors/*": "./vectors/*",
+    "./package.json": "./package.json"
+  },
+  "sideEffects": [
+    "./dist/cjs/veil/wasm/warden_wasm.js"
+  ],
   "files": [
     "dist",
     "deployments",
@@ -27,9 +60,13 @@
     "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "tsc && npm run copy:wasm && npm run copy:vectors",
-    "copy:wasm": "mkdir -p dist/veil/wasm && cp src/veil/wasm/warden_wasm.js src/veil/wasm/warden_wasm_bg.wasm src/veil/wasm/warden_wasm.d.ts src/veil/wasm/warden_wasm_bg.wasm.d.ts dist/veil/wasm/",
+    "build": "npm run build:esm && npm run build:cjs && npm run finalize:dist && npm run copy:wasm && npm run copy:vectors && npm run verify:packaging",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "finalize:dist": "node scripts/finalize-dist.mjs",
+    "copy:wasm": "mkdir -p dist/cjs/veil/wasm && cp src/veil/wasm/warden_wasm.js src/veil/wasm/warden_wasm_bg.wasm src/veil/wasm/warden_wasm.d.ts src/veil/wasm/warden_wasm_bg.wasm.d.ts dist/cjs/veil/wasm/",
     "copy:vectors": "mkdir -p vectors && cp ../vectors/reading-key.json vectors/",
+    "verify:packaging": "node scripts/verify-packaging.mjs",
     "clean": "rm -rf dist vectors",
     "prepublishOnly": "npm run clean && npm run build",
     "typecheck": "tsc --noEmit",
@@ -44,6 +81,10 @@
     "ethereum",
     "sdk"
   ],
+  "dependencies": {
+    "@noble/curves": "^1.2.0",
+    "@noble/hashes": "^1.3.2"
+  },
   "peerDependencies": {
     "ethers": "^6.0.0"
   },

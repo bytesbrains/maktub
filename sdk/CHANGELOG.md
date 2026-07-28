@@ -1,5 +1,58 @@
 # Changelog
 
+## 0.1.0-dev.5
+
+**Breaking:** Veil is no longer re-exported from the package root. Import it
+from `@bytesbrains/maktub-sdk/veil` instead — the named exports (`veilSeal`,
+`veilOpen`, `veilUnwrap`, `combinePartials`, `conditionIdentity`,
+`beatExecutedCondition`, `VEIL_CHAIN_ID`, `VEIL_PREVIEW`) are unchanged. Nothing
+else moved, and no crypto output changed.
+
+- **The package is now dual ESM + CommonJS, with an `exports` map** (#39).
+  Previously it was CJS-only — `main` with no `module` field and no `exports` —
+  so bundlers could not reliably tree-shake it and there was no way to ask for
+  part of it. `.` and `./crypto` ship both formats; `./veil` is CommonJS, which
+  is what it has always actually been.
+- **A browser consumer can now take the crypto alone.**
+  `@bytesbrains/maktub-sdk/crypto` is reading-key derivation, ECIES, and the
+  hybrid envelope, with no `ethers`, no Veil, and no WebAssembly in the module
+  graph. This is the substance of the change rather than a size optimisation.
+  The root barrel used to reach `veil/veil.js`, which imports vendored
+  wasm-bindgen glue built for the *nodejs* target — it does
+  `require('fs').readFileSync(...)` and instantiates the module at
+  module-evaluation time. So importing a single HKDF function evaluated that
+  glue: in a browser bundle it broke outright, and where it did load it cost the
+  consuming origin a `wasm-unsafe-eval` in its CSP. That is the wrong trade to
+  force on precisely the origin deriving reading keys, because a reading key is
+  long-lived and its published half is write-once — one injected script that
+  reads it decrypts everything that user has ever received, unrotatably.
+  `script-src 'self'` is achievable again.
+- `"sideEffects"` is declared, naming the Veil wasm glue as the one module that
+  has any, so bundlers can drop unreached code from the rest.
+- **`@noble/curves` and `@noble/hashes` are now declared dependencies.** The
+  crypto layer has always imported them directly, but neither was in
+  `dependencies` — they resolved only because `ethers` happened to hoist them
+  into place. Under pnpm's strict layout, Yarn PnP, or any bundler resolving the
+  same way, `@bytesbrains/maktub-sdk/crypto` would fail to resolve. The
+  versions resolve to the same ones `ethers` already pins, so no code changed.
+- `npm run verify:packaging` (part of `npm run build`, so CI and the publish
+  workflow both run it) checks the claims above against `dist/` rather than
+  trusting them: every `exports` target exists, the ESM tree contains no wasm,
+  and importing `./crypto` with the `WebAssembly` constructors trapped
+  instantiates nothing.
+
+### Migrating
+
+`import { MaktubClient } from "@bytesbrains/maktub-sdk"` is unchanged, in both
+ESM and CommonJS. Two things to know:
+
+- If you used Veil, change the import path (above).
+- The `exports` map means deep paths into `dist/` are no longer reachable —
+  `@bytesbrains/maktub-sdk/dist/crypto/ecies.js` and the like. Use `.`,
+  `./crypto`, or `./veil`. The two documented data paths still work exactly as
+  before: `@bytesbrains/maktub-sdk/vectors/reading-key.json` and
+  `@bytesbrains/maktub-sdk/deployments/base-sepolia.json`.
+
 ## 0.1.0-dev.4
 
 - The packaged **carrier** (`deployments/base-sepolia.json`) now ships ten
