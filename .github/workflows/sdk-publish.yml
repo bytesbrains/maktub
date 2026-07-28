@@ -1,0 +1,243 @@
+name: SDK publish
+
+# The SDK's first three versions went to npm by hand from a laptop, and the gap
+# that opens is on the registry right now: `main` carries a ten-contract carrier
+# while npm's newest tarball has eight, and the `latest` dist-tag still points at
+# 0.1.0-dev.2, which has no carrier at all. That is the same drift executor-image.yml
+# was written to close for the Docker image (issue #15) — the artifact users
+# actually install diverging from the source that CI proved green.
+#
+# Authentication is npm **Trusted Publishing** (OIDC): the registry is configured
+# with this repository + this workflow *filename* as a trusted publisher, so there
+# is no NPM_TOKEN secret to leak or rotate. Two consequences worth knowing before
+# you edit this file:
+#   - RENAMING THIS FILE BREAKS PUBLISHING until the trusted publisher entry on
+#     npmjs.com is updated to match the new name.
+#   - Provenance attestations are generated automatically under trusted publishing,
+#     which is why no --provenance flag appears below. It needs `id-token: write`.
+#
+# Deliberately NOT part of ci.yml, and deliberately workflow_dispatch-only:
+# publishing is irreversible in a way CI never is. A version number can never be
+# reused once published, and unpublishing is restricted to a narrow window and
+# breaks anyone who already installed. Auto-publishing on merge to main would burn
+# a version per merge. Cutting a release stays a deliberate human act — the same
+# posture executor-image.yml takes for its version tags.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dist_tag:
+        description: "npm dist-tag to publish under. Pre-releases belong on 'dev'; 'latest' is what a bare `npm install` resolves."
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - latest
+      dry_run:
+        description: "Run every gate and pack the tarball, but do not publish. Leave checked to rehearse."
+        required: false
+        default: true
+        type: boolean
+
+# Never cancel an in-flight publish: a half-completed registry write is worse
+# than a slow one. Queue instead.
+concurrency:
+  group: sdk-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: SDK (verify, pack, publish)
+    runs-on: ubuntu-latest
+    # Fork clones of this repo must never be able to publish under our name, and
+    # this workflow only makes sense against the canonical source.
+    if: github.repository == 'bytesbrains/maktub'
+    permissions:
+      contents: read
+      # Required for Trusted Publishing — this is what mints the short-lived OIDC
+      # token npm exchanges for publish rights. Without it the publish step fails
+      # with an authentication error, not a permission one.
+      id-token: write
+    defaults:
+      run:
+        working-directory: sdk
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Refuse to publish from anywhere but main
+        # A dispatch can be aimed at any ref. Publishing from a feature branch would
+        # put code on the registry that never passed a merge review — the tarball
+        # would be unreproducible from main, which is exactly what provenance is
+        # supposed to rule out.
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Refusing to publish from ${GITHUB_REF}. Re-run this workflow against main."
+          exit 1
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+          cache: "npm"
+          cache-dependency-path: sdk/package-lock.json
+
+      - name: Ensure npm supports Trusted Publishing
+        # The npm bundled with Node 22 is 10.x, which predates OIDC publishing
+        # entirely and would fall back to looking for a token that does not exist.
+        # 11.5.1 is the floor; pulling latest keeps us above it.
+        working-directory: .
+        run: |
+          npm install -g npm@latest
+          npm --version
+
+      - run: npm ci
+
+      # ---- Everything below this line must pass before anything is published. ----
+
+      - name: Verify (typecheck, build, tests)
+        # ci.yml already ran these on the merge commit, but re-running them here is
+        # the point: this job publishes the tree it just built, so the artifact that
+        # reaches the registry is the artifact that was proven green — not one that
+        # merely shares a commit with a green run. `build` also runs copy:wasm and
+        # copy:vectors, which produce files the tarball needs.
+        run: |
+          npm run typecheck
+          npm run build
+          npm test
+
+      - name: Version must not already be on the registry
+        # npm rejects a duplicate version anyway, but it does so *after* the publish
+        # request — a confusing 403 that reads like an auth failure. Fail here
+        # instead, with the actual reason and the fix.
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          echo "Publishing candidate: ${name}@${version}"
+          if npm view "${name}@${version}" version >/dev/null 2>&1; then
+            echo "::error file=sdk/package.json::${name}@${version} is already published. Bump the version in sdk/package.json and add a CHANGELOG entry."
+            exit 1
+          fi
+          echo "${name}@${version} is not yet on the registry."
+          {
+            echo "name=${name}"
+            echo "version=${version}"
+          } >> "$GITHUB_OUTPUT"
+        id: meta
+
+      - name: Guard the dist-tag against the version's pre-release status
+        # The registry currently shows why this gate exists: `latest` points at
+        # 0.1.0-dev.2 while the newer dev.3 sits on `dev`, so a bare
+        # `npm install @bytesbrains/maktub-sdk` resolves to a tarball with no
+        # deployment carrier in it. A pre-release version must not become what
+        # unpinned consumers get by default, and a stable version parked on `dev`
+        # is almost certainly a mis-click.
+        env:
+          DIST_TAG: ${{ inputs.dist_tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          case "$VERSION" in
+            *-*) prerelease=1 ;;
+            *)   prerelease=0 ;;
+          esac
+          if [ "$prerelease" = "1" ] && [ "$DIST_TAG" = "latest" ]; then
+            echo "::error::Refusing to publish pre-release ${VERSION} to 'latest' — a bare \`npm install\` would resolve to it. Publish to 'dev', or cut a stable version."
+            exit 1
+          fi
+          if [ "$prerelease" = "0" ] && [ "$DIST_TAG" = "dev" ]; then
+            echo "::error::${VERSION} is a stable version but the dist-tag is 'dev'. Publish stable releases to 'latest'."
+            exit 1
+          fi
+          echo "Version ${VERSION} (prerelease=${prerelease}) → dist-tag '${DIST_TAG}'."
+
+      - name: Tarball must carry the deployment carrier and the vectors
+        # Regression gate for issue #32. Both files are *generated into* the package
+        # (the carrier by scripts/gen-addresses.mjs, the vectors by copy:vectors from
+        # the repo-root source of truth), so a build-script or package.json#files
+        # change can silently drop them without failing a single unit test.
+        #
+        # The carrier is the addresses every non-TypeScript downstream reads. If it
+        # ships short, consumers hardcode what is missing, outside the drift check —
+        # and because a recipient's reading key is published against a derived
+        # smart-wallet address, a stale factory address is an account-level fault,
+        # not a display one. The vectors are the byte-for-byte cross-language
+        # contract every port asserts against.
+        run: |
+          npm pack --silent >/dev/null
+          tarball=$(ls -t ./*.tgz | head -1)
+          echo "Inspecting ${tarball}"
+
+          for required in package/deployments/base-sepolia.json package/vectors/reading-key.json; do
+            if ! tar tzf "$tarball" | grep -qxF "$required"; then
+              echo "::error file=sdk/package.json::${required} is missing from the tarball. Check package.json#files and the build scripts."
+              tar tzf "$tarball" | head -40
+              exit 1
+            fi
+            echo "  present: ${required}"
+          done
+
+          # The carrier must be complete, not merely present — eight contracts was
+          # the exact shape of issue #32.
+          count=$(tar xzOf "$tarball" package/deployments/base-sepolia.json | node -p "Object.keys(JSON.parse(require('fs').readFileSync(0,'utf8')).contracts).length")
+          echo "  carrier contracts: ${count}"
+          if [ "$count" -lt 10 ]; then
+            echo "::error::Carrier ships ${count} contracts, expected at least 10. Add the missing entries to the allow-list in scripts/gen-addresses.mjs (issue #32)."
+            tar xzOf "$tarball" package/deployments/base-sepolia.json
+            exit 1
+          fi
+
+          # The packaged vectors must match the repo-root source of truth exactly —
+          # a stale copy is worse than none, since ports would assert against it.
+          tar xzOf "$tarball" package/vectors/reading-key.json > /tmp/packed-vectors.json
+          if ! diff -q /tmp/packed-vectors.json ../vectors/reading-key.json >/dev/null; then
+            echo "::error::Packaged vectors differ from vectors/reading-key.json. Re-run the build."
+            diff /tmp/packed-vectors.json ../vectors/reading-key.json || true
+            exit 1
+          fi
+          echo "  packaged vectors are byte-identical to vectors/reading-key.json"
+
+          rm -f "$tarball"
+
+      - name: Publish (dry run)
+        if: inputs.dry_run
+        env:
+          DIST_TAG: ${{ inputs.dist_tag }}
+        run: |
+          npm publish --dry-run --tag "$DIST_TAG" --access public
+          echo "::notice::DRY RUN — nothing was published. Re-run with 'dry_run' unchecked to publish for real."
+
+      - name: Publish
+        if: ${{ !inputs.dry_run }}
+        # No NODE_AUTH_TOKEN: authentication is the OIDC token minted by the
+        # `id-token: write` permission above and exchanged with the registry, which
+        # also produces the provenance attestation automatically. `--access public`
+        # is required because the package is scoped and scoped packages default to
+        # restricted on first publish.
+        env:
+          DIST_TAG: ${{ inputs.dist_tag }}
+        run: npm publish --tag "$DIST_TAG" --access public
+
+      - name: Summary
+        if: success()
+        env:
+          NAME: ${{ steps.meta.outputs.name }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          DIST_TAG: ${{ inputs.dist_tag }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          {
+            echo "### SDK publish"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Package | \`${NAME}\` |"
+            echo "| Version | \`${VERSION}\` |"
+            echo "| dist-tag | \`${DIST_TAG}\` |"
+            echo "| Dry run | \`${DRY_RUN}\` |"
+            echo
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "Nothing was published."
+            else
+              echo "Published. Verify with \`npm view ${NAME} dist-tags\`."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
