@@ -78,7 +78,24 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
-          registry-url: "https://registry.npmjs.org"
+          # NO registry-url — deliberately, and it is not an oversight to "fix".
+          #
+          # `registry-url` makes setup-node write an .npmrc containing
+          #   //registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}
+          # and export NODE_AUTH_TOKEN as the literal placeholder
+          # XXXXX-XXXXX-XXXXX-XXXXX when no token is supplied. npm then sees a
+          # configured credential, uses it INSTEAD of attempting the OIDC exchange,
+          # and the registry rejects the garbage token with
+          #   npm error code E404 ... PUT https://registry.npmjs.org/@bytesbrains%2fmaktub-sdk
+          # E404, not E401 — npm reports missing rather than unauthorized so it does
+          # not leak which private packages exist, which makes this read like a
+          # misconfigured trusted publisher when it is really a shadowed credential.
+          # That is exactly how it failed the first time (run 30397586602).
+          #
+          # Omitting it leaves no user .npmrc and NODE_AUTH_TOKEN unset, so npm falls
+          # back to its default registry (registry.npmjs.org — the same host) and
+          # authenticates via OIDC. Verified on a runner: with registry-url absent,
+          # ACTIONS_ID_TOKEN_REQUEST_URL is set and no npmrc is written.
           cache: "npm"
           cache-dependency-path: sdk/package-lock.json
 
@@ -92,6 +109,40 @@ jobs:
           npm --version
 
       - run: npm ci
+
+      - name: OIDC must be available and unshadowed
+        # Turns the two ways trusted publishing silently breaks into named failures
+        # instead of npm's E404, which reads like a misconfigured publisher and sends
+        # you looking in the wrong place (it cost a failed publish once already).
+        #
+        #   1. No OIDC token endpoint -> `id-token: write` was dropped or the repo is
+        #      barred from OIDC. Note that GitHub does NOT list Id-token in the
+        #      "GITHUB_TOKEN Permissions" log group even when it is granted, so that
+        #      group is not a way to check this. The env var is.
+        #   2. A configured _authToken -> npm prefers it and never tries OIDC, so a
+        #      stray registry-url or NODE_AUTH_TOKEN silently disables the whole
+        #      mechanism.
+        working-directory: .
+        run: |
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "::error::No OIDC token endpoint. The job needs 'id-token: write' and the repo must be allowed to request OIDC tokens."
+            exit 1
+          fi
+          echo "OIDC token endpoint is available."
+
+          if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::NODE_AUTH_TOKEN is set. npm would use it instead of OIDC and fail with a misleading E404. Remove it (usually setup-node's 'registry-url')."
+            exit 1
+          fi
+
+          for f in "${NPM_CONFIG_USERCONFIG:-}" "$HOME/.npmrc" "$GITHUB_WORKSPACE/sdk/.npmrc" "$GITHUB_WORKSPACE/.npmrc"; do
+            [ -n "$f" ] && [ -f "$f" ] || continue
+            if grep -q "_authToken" "$f"; then
+              echo "::error::$f configures an _authToken, which shadows OIDC. Remove it (usually setup-node's 'registry-url')."
+              exit 1
+            fi
+          done
+          echo "No _authToken configured — npm will authenticate via OIDC."
 
       # ---- Everything below this line must pass before anything is published. ----
 
@@ -208,11 +259,11 @@ jobs:
 
       - name: Publish
         if: ${{ !inputs.dry_run }}
-        # No NODE_AUTH_TOKEN: authentication is the OIDC token minted by the
-        # `id-token: write` permission above and exchanged with the registry, which
-        # also produces the provenance attestation automatically. `--access public`
-        # is required because the package is scoped and scoped packages default to
-        # restricted on first publish.
+        # No NODE_AUTH_TOKEN, and no .npmrc — see the setup-node comment above.
+        # Authentication is the OIDC token minted by the `id-token: write` permission
+        # and exchanged with the registry, which also produces the provenance
+        # attestation automatically. `--access public` is required because the package
+        # is scoped and scoped packages default to restricted on first publish.
         env:
           DIST_TAG: ${{ inputs.dist_tag }}
         run: npm publish --tag "$DIST_TAG" --access public
