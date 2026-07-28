@@ -55,6 +55,15 @@ const A = {
   ExecutorRewards: addr("ExecutorRewards"),
   ExecutionRelay: addr("ExecutionRelay"),
   MktbGovernance: addr("MktbGovernance"),
+  // Both are inputs to counterfactual smart-wallet address derivation
+  //   salt   = keccak256(ownerX ‖ ownerY ‖ saltNonce)
+  //   wallet = CREATE2(factory, salt, keccak256(ERC-1167 code ‖ implementation))
+  // which every client runs *before* the wallet exists on chain. Distributing
+  // them here keeps them inside the drift gate instead of hand-copied per
+  // consumer, where a factory/implementation redeploy would silently leave
+  // clients deriving on the previous stack (#32).
+  MaktubSmartWalletFactory: addr("MaktubSmartWalletFactory"),
+  MaktubSmartWalletImplementation: addr("MaktubSmartWalletImplementation"),
 };
 
 const banner =
@@ -83,6 +92,8 @@ const carrier = {
     executorRewards: A.ExecutorRewards,
     executionRelay: A.ExecutionRelay,
     mktbGovernance: A.MktbGovernance,
+    maktubSmartWalletFactory: A.MaktubSmartWalletFactory,
+    maktubSmartWalletImplementation: A.MaktubSmartWalletImplementation,
   },
 };
 mkdirSync(join(repoRoot, "sdk/deployments"), { recursive: true });
@@ -107,6 +118,8 @@ export const SEPOLIA_CONTRACTS = {
   executionRelay: "${A.ExecutionRelay}",
   recipientRegistryV2: "${A.RecipientRegistryV2}",
   maktubFlash: "${A.MaktubFlash}",
+  maktubSmartWalletFactory: "${A.MaktubSmartWalletFactory}",
+  maktubSmartWalletImplementation: "${A.MaktubSmartWalletImplementation}",
 };
 `;
 writeFileSync(join(repoRoot, "sdk/src/constants/sepolia_addresses.generated.ts"), ts);

@@ -16,4 +16,6 @@ export const SEPOLIA_CONTRACTS = {
   executionRelay: "0x4811F8ea7aC60D72bdbdD3ce8FA21Fc8cccE4218",
   recipientRegistryV2: "0x9465fF9350762b397f2b8157391F3723096f4161",
   maktubFlash: "0xCE40C940ed17533895Bd854ACe7C5724Fc4c1298",
+  maktubSmartWalletFactory: "0x0Dd60d0ad17B43465EF2C94D343F2d9FC476d22e",
+  maktubSmartWalletImplementation: "0x81d7D01D229dA1D763914b0920415c0129c526CE",
 };
