@@ -1,6 +1,6 @@
 {
   "name": "@bytesbrains/maktub-sdk",
-  "version": "0.1.0-dev.3",
+  "version": "0.1.0-dev.4",
   "description": "TypeScript SDK for the Maktub Protocol — decentralized conditional execution engine on Base L2",
   "author": "BytesBrains",
   "license": "MIT",
@@ -21,14 +21,16 @@
   "files": [
     "dist",
     "deployments",
+    "vectors",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
   ],
   "scripts": {
-    "build": "tsc && npm run copy:wasm",
+    "build": "tsc && npm run copy:wasm && npm run copy:vectors",
     "copy:wasm": "mkdir -p dist/veil/wasm && cp src/veil/wasm/warden_wasm.js src/veil/wasm/warden_wasm_bg.wasm src/veil/wasm/warden_wasm.d.ts src/veil/wasm/warden_wasm_bg.wasm.d.ts dist/veil/wasm/",
-    "clean": "rm -rf dist",
+    "copy:vectors": "mkdir -p vectors && cp ../vectors/reading-key.json vectors/",
+    "clean": "rm -rf dist vectors",
     "prepublishOnly": "npm run clean && npm run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

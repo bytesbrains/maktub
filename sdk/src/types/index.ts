@@ -33,6 +33,10 @@ export interface ContractAddresses {
   recipientRegistryV2?: string;
   /** MaktubFlash contract address (instant-triggered citizen). */
   maktubFlash?: string;
+  /** MaktubSmartWalletFactory address — the CREATE2 deployer for smart wallets. */
+  maktubSmartWalletFactory?: string;
+  /** MaktubSmartWalletImplementation address — the ERC-1167 target smart wallets proxy to. */
+  maktubSmartWalletImplementation?: string;
 }
 
 /** Network configuration including chain ID and contract addresses. */

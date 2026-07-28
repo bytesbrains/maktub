@@ -43,6 +43,12 @@ aderyn-report.json
 build/
 dist/
 
+# The SDK's packaging copy of the canonical cross-language vectors. Written by
+# `npm run copy:vectors` from the tracked /vectors/ at the repo root, which stays
+# the single source of truth — committing the copy would let the two drift.
+# Anchored so it never matches /vectors/ itself.
+/sdk/vectors/
+
 # Logs
 logs
 *.log
