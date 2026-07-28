@@ -127,6 +127,8 @@ Both citizens depend on the same small substrate. Each piece of the substrate is
 | Token | `MktbToken.sol` | Both (economic layer) | Immutable (already deployed) |
 | Executor rewards (MKTB emissions) | `ExecutorRewards.sol` | Both | See note below — planned immutable pre-mainnet |
 
+The table above is exhaustive. In particular, the smart-wallet contracts in `contracts/v3/wallet/` are **not** substrate and **not** a citizen — see §6.1 for why they sit in this repository at all.
+
 **Fee flow and value accrual:** Each citizen contract sends the full `creationFee` directly to a hardcoded immutable Foundation address (see §4 invariant 5). This is a per-citizen immutable constant, not a separate substrate contract. MKTB value accrual comes from executor-stake demand (D-023 MKTB-stake-only commitment) — not from an automated buyback or burn layer.
 
 > **Disclosure — `ExecutorRewards.sol` current state.** The deployed `ExecutorRewards.sol` carries inherited `GOVERNANCE_ROLE` and `CORE_ROLE` admin roles and tunable parameters (`rewardPerExecution`, `minimumStake`, pause). The doc's "immutable" framing is **aspirational** for the long-term architecture, not the literal current state. Before mainnet, one of two paths must be committed to: (1) renounce all admin roles on the deployed contract, or (2) deploy a clean-room `ExecutorRewardsV2` with no admin surface and migrate executors to it. Tracked internally as issue #23. The substrate-evolution rule in this section supports option (2); the existing no-governance invariant in §4 will not be literally true until one of those paths is executed.
@@ -389,6 +391,27 @@ Everything in the list below lives **in apps**, not at the protocol layer. The p
 - Content moderation, reporting, takedown.
 
 If a feature would require the protocol to "know" something about who a user is, where they are, what content they are sending, or what they can and cannot do, it is an app-layer feature. No exceptions.
+
+### 6.1 The smart wallet is not a citizen
+
+The repository contains Solidity that is **not part of the protocol**, and the distinction is not obvious from the directory tree alone. `contracts/v3/wallet/` holds `MaktubSmartWallet.sol` and `MaktubSmartWalletFactory.sol` — a single-owner, passkey-controlled ERC-4337 account and its CREATE2 clone factory.
+
+**They are neither a citizen (§2) nor substrate (§3).** They appear in neither table, and that is deliberate rather than an omission.
+
+> **Disclosure — why wallet contracts live in a protocol repository.** `MaktubSmartWallet.sol` is a minimal fork of Coinbase's `CoinbaseSmartWallet.sol` (MIT, copyright preserved in the file header), stripped to single-owner semantics with UUPS upgradeability removed. It is kept in this monorepo **for the duration of v1 development only**, and is scheduled to split out to a public `base-passkey-wallet` repository at mainnet, per `SMART_WALLET_SPEC` §6 (operator-local). Its presence here is a build-convenience decision — predictable 0.8.28 / Cancun compilation alongside the v3 tree — not an architectural claim. Treat it as a tenant with a move date, not a resident.
+
+The separation is structural, not just documentary, and holds in both directions:
+
+- **No protocol contract references the wallet.** Nothing in `contracts/v3/core/` mentions it. Neither citizen, and no registry, knows it exists.
+- **The wallet references no Maktub contract.** It contains no reference to `MaktubCore`, `MaktubFlash`, either registry, or `$MKTB`. Its entire external surface — `initialize`, `execute`, `executeBatch`, `entryPoint`, `owner`, `isValidSignature` — is generic ERC-4337 and ERC-1271. The only Maktub-specific thing about it is its name.
+
+**The protocol does not care how you authenticate.** A passkey wallet is a login mechanism. An EOA works identically; Beat and Flash never ask. This is the same boundary §6 draws for "account abstraction routing, bundlers, paymasters, session keys" — the wallet is that bullet's on-chain counterpart, and it sits on the app side of the line with the rest of them.
+
+**Why its addresses ship in the deployment carrier anyway.** `deployments/base-sepolia.json` and the published SDK carrier both include `MaktubSmartWalletFactory` and `MaktubSmartWalletImplementation`. That is because clients derive counterfactual account addresses from them and would otherwise hardcode the pair outside the drift check — it is distribution of a value clients need, not a statement that the contracts are protocol. The same file shipping an address does not make its subject a citizen.
+
+**What this means for contributors.** Client-side code that derives against these contracts — counterfactual addressing, WebAuthn codecs, `PackedUserOperation` encoding — is **app-layer work and does not belong in `@bytesbrains/maktub-sdk`**, which is the protocol's developer surface. Building a published API over contracts with a documented move date strands that API when they move. The reasoning is recorded in [issue #39](https://github.com/bytesbrains/maktub/issues/39).
+
+**One property it does share with the protocol: immutability.** UUPS was stripped in the fork; deployed wallets are immutable bytecode forever, and the factory pins one implementation at construction. v1 has a single owner and no recovery path — losing the credential is unrecoverable at the contract layer, by design, with recovery delegated to the platform's passkey sync. v2 reintroduces `addOwnerPubkey` as the recovery primitive.
 
 ---
 

@@ -14,8 +14,10 @@ Scoped context for the Maktub protocol contracts. Read alongside the root [`../C
 | `core/` | `MaktubCore.sol` (Beat), `MaktubFlash.sol` (Flash), `RecipientRegistry.sol`, `RecipientRegistryV2.sol`, `ExecutionRelay.sol`, `IExecutorRewards.sol` |
 | `token/` | `MktbToken.sol` (ERC-20 + ERC20Votes) |
 | `governance/` | `ExecutorRewards.sol`, `MktbGovernance.sol`, `IMaktubCore.sol` |
-| `wallet/` | `MaktubSmartWallet.sol`, `MaktubSmartWalletFactory.sol` + interfaces |
+| `wallet/` | `MaktubSmartWallet.sol`, `MaktubSmartWalletFactory.sol` + interfaces — **NOT protocol.** See below. |
 | `mocks/` | `ReentrantCreator.sol` (test-only) |
+
+> **`wallet/` is a tenant, not a resident.** It is neither a citizen nor substrate, and appears in neither table below. `MaktubSmartWallet.sol` is a minimal fork of Coinbase's `CoinbaseSmartWallet.sol` (MIT, copyright preserved in-file), kept here **for v1 development only** and scheduled to split out to a public `base-passkey-wallet` repo at mainnet (`SMART_WALLET_SPEC` §6, operator-local). The separation holds both ways: nothing in `core/` references the wallet, and the wallet references no Maktub contract — its whole surface is generic ERC-4337 / ERC-1271. **The protocol does not care how you authenticate**; an EOA works identically. Do not add protocol dependencies on it, and do not build SDK surface over it — client-side derivation against these contracts is app-layer work ([#39](https://github.com/bytesbrains/maktub/issues/39)). Full rationale: [`../docs/developer/protocol-family.md`](../docs/developer/protocol-family.md) §6.1.
 
 ## Architecture — Beat + Flash both live on Sepolia, mainnet Beat-first
 
