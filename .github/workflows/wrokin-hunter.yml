@@ -1,6 +1,14 @@
 # wrokin Verified Security Hunter — added for you by "Enable" in the wrokin
 # dashboard. Advisory: it comments findings and NEVER blocks your PR (exits 0).
-# Runs on every pull request, and on demand via `workflow_dispatch`.
+#
+# The trigger fires on every pull request, but WHETHER a hunt actually runs — and how
+# deep — is decided by the policy you set in the wrokin dashboard (base branches and
+# scan level, or on-demand only). Set the repo to on-demand and the job below is
+# skipped outright: no runner is scheduled and no Actions minutes are used. Otherwise
+# the job starts and check-in applies your branch rules, stopping in a few seconds when
+# a PR is out of scope. Change the policy in the dashboard; you never need to
+# edit this file. On-demand hunts: `/pi hunter <level>` on a PR, the dashboard's
+# "Run hunt now", or Run workflow below.
 #
 # It runs the signed wrokin-hunter image directly (`docker run`) rather than
 # `uses:`-ing an action, because the action lives in a PRIVATE repo that your repo
@@ -30,15 +38,23 @@ permissions:
 
 jobs:
   hunt:
+    # Don't even start a runner for an automatic PR run on a repo set to on-demand
+    # (#450). wrokin keeps ${{ vars.WROKIN_HUNT_AUTO }} in step with your dashboard
+    # setting; a job skipped by `if:` is never scheduled, so an on-demand repo costs
+    # you nothing per PR. Unset means "on" — if the variable is missing or stale the
+    # hunt still starts and check-in decides, so this can only ever save a run that
+    # would have been declined anyway. `workflow_dispatch` ignores it entirely:
+    # asking for a hunt explicitly always runs one.
+    if: github.event_name != 'pull_request' || vars.WROKIN_HUNT_AUTO != 'off'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - name: Log in to GHCR (pull the wrokin-hunter image)
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: Hunt (Docker socket mounted so a PoC can detonate)
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          INPUT_API_BASE: https://pi-backend.sandeep-49e.workers.dev
+          INPUT_API_BASE: https://api.wrok.in
           INPUT_PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
           INPUT_LEVEL: ${{ inputs.level }}
         run: |
@@ -56,4 +72,4 @@ jobs:
             -e INPUT_API_BASE \
             -e INPUT_PR_NUMBER \
             -e INPUT_LEVEL \
-            ghcr.io/bytesbrains/wrokin-hunter@sha256:cba79ef888d8caa203a82f954e28027f048b0d7dfd5f266d04a62b9b494324e6
+            ghcr.io/bytesbrains/wrokin-hunter@sha256:84ed6281a3a706b8ec2949da3e4ad1e9bfb9d6a32b3b6b54dba8d11c10c0d430
