@@ -203,7 +203,7 @@ jobs:
         # 0.11.4 is the newest the action's image can run (its Python is <3.10,
         # which slither >=0.11.5 requires); the committed IDs were generated
         # with 0.11.4.
-        uses: crytic/slither-action@v0.4.0
+        uses: crytic/slither-action@v0.4.2
         with:
           target: "."
           slither-version: "0.11.4"
