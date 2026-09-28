@@ -1,7 +1,7 @@
 # Base image pinned by digest so a compromised or re-tagged upstream can't
 # silently change what we build. Tag kept alongside for readability — bump
 # both deliberately when updating.
-FROM node:26-slim@sha256:deae974a69e140f44f434ab29cb519fb5f8fe250fd364b8ca446bd0761acdc6a
+FROM node:26-slim@sha256:ec7758ee051e457b468b32bde57b0879010b325bb9862718e9615225ce4aaae1
 
 WORKDIR /app
 
