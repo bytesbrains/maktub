@@ -115,7 +115,7 @@ jobs:
       - name: Build (amd64) for verification
         # Single-arch and loaded into the local daemon so the next step can actually
         # run it. The multi-arch push below reuses this layer cache.
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: executor
           platforms: linux/amd64
@@ -190,7 +190,7 @@ jobs:
         # Multi-arch to match what the README promises. No `:latest` — the README
         # states there deliberately isn't one until mainnet.
         if: github.event_name != 'pull_request' && github.repository == 'bytesbrains/maktub'
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: executor
           platforms: linux/amd64,linux/arm64
